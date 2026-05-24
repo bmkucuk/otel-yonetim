@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+{% set active = "muh-personel" %}
+{% block title %}Personel{% endblock %}
+{% block page_title %}👥 Personel & Maaşlar{% endblock %}
+
+{% block content %}
+<!-- Üst: Personel Listesi -->
+<div class="panel" style="margin-bottom:16px">
+  <div class="toolbar" style="margin-bottom:10px">
+    <div class="section-title" style="margin:0;border:0">👤 Personel Listesi</div>
+    <div style="flex:1"></div>
+    <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openPersonelModal()">＋ Personel Ekle</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Ad Soyad</th><th>Görev</th><th style="text-align:right">Net Maaş</th><th>İşe Giriş</th><th>Telefon</th><th>TC Kimlik</th><th>IBAN</th><th style="text-align:right">Bu Ay Avans</th><th>Durum</th><th></th></tr></thead>
+      <tbody id="pers-tbody"><tr class="loading-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Alt: Maaş Ödemeleri -->
+<div class="panel">
+  <div class="toolbar" style="margin-bottom:10px">
+    <div class="section-title" style="margin:0;border:0">💰 Maaş Ödemeleri</div>
+    <label style="color:var(--text2);font-size:12px">Yıl:</label>
+    <select class="filter" id="yil-sel" onchange="loadMaaslar()"></select>
+    <div style="flex:1"></div>
+    <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openMaasModal()">＋ Maaş Ekle</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Tarih</th><th>Personel</th><th>Dönem</th>
+        <th style="text-align:right">Net Maaş</th>
+        <th style="text-align:right">Yol</th>
+        <th style="text-align:right">Fazla Mesai</th>
+        <th style="text-align:right">İzin</th>
+        <th style="text-align:right">Gelmediği</th>
+        <th style="text-align:right">Avans</th>
+        <th style="text-align:right">Toplam</th>
+        <th>Ödeme</th><th>Otel</th><th></th>
+      </tr></thead>
+      <tbody id="maas-tbody"><tr class="loading-row"><td colspan="12"><span class="spinner"></span></td></tr></tbody>
+    </table>
+  </div>
+  <div id="maas-toplam" style="margin-top:8px;font-size:13px;color:var(--accent2);font-weight:700"></div>
+</div>
+
+<!-- Personel Modal -->
+<div class="modal-overlay" id="pers-modal">
+  <div class="modal">
+    <h2>Personel Ekle</h2>
+    <div class="form-row single"><div class="form-group"><label>Ad Soyad</label><input type="text" id="p-ad"></div></div>
+    <div class="form-row"><div class="form-group"><label>Görev</label><input type="text" id="p-gorev"></div>
+    <div class="form-group"><label>İşe Giriş</label><input type="date" id="p-ise" onclick="try{this.showPicker()}catch(e){}"></div></div>
+    <div class="form-row"><div class="form-group"><label>Net Maaş (₺)</label><input type="number" id="p-maas" value="0"></div>
+    <div class="form-group"><label>IBAN</label><input type="text" id="p-iban" placeholder="TR..."></div></div>
+    <div class="form-row"><div class="form-group"><label>Telefon</label><input type="text" id="p-tel" placeholder="05XX XXX XX XX"></div>
+    <div class="form-group"><label>TC Kimlik No</label><input type="text" id="p-tc" placeholder="XXXXXXXXXXX" maxlength="11"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closePersModal()">İptal</button>
+      <button class="btn btn-primary" onclick="savePersonel()">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Avans Modal -->
+<div class="modal-overlay" id="avans-modal">
+  <div class="modal" style="max-width:420px">
+    <h2 id="avans-modal-baslik">Avans Ver</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Tarih</label><input type="date" id="av-tarih"></div>
+      <div class="form-group"><label>Tutar (₺)</label><input type="number" id="av-tutar" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Ödeme Şekli</label>
+        <select id="av-odeme">
+          <option value="100">Nakit (Kasa)</option>
+          <option value="102-1">İş Bankası</option>
+          <option value="102-2">Ziraat Bankası</option>
+          <option value="102-3">Deniz Bank</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Otel</label>
+        <select id="av-otel"><option>GENEL</option><option>LEO</option><option>CV</option></select>
+      </div>
+    </div>
+    <div class="form-row single">
+      <div class="form-group"><label>Açıklama</label><input type="text" id="av-aciklama" placeholder="İsteğe bağlı"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeAvansModal()">İptal</button>
+      <button class="btn btn-primary" onclick="saveAvans()">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Maaş Modal -->
+<div class="modal-overlay" id="maas-modal">
+  <div class="modal" style="max-width:600px">
+    <h2 id="maas-modal-baslik">Maaş Ödemesi Ekle</h2>
+    <div class="form-row single"><div class="form-group"><label>Personel</label><select id="m-pers" onchange="onPersChange()"></select></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Ödeme Tarihi</label><input type="date" id="m-tarih"></div>
+      <div class="form-group"><label>Dönem Yılı</label><input type="number" id="m-yil" min="2020" max="2030"></div>
+      <div class="form-group"><label>Dönem Ayı</label>
+        <select id="m-ay" onchange="calcMaas()">
+          <option value="1">Ocak</option><option value="2">Şubat</option><option value="3">Mart</option>
+          <option value="4">Nisan</option><option value="5">Mayıs</option><option value="6">Haziran</option>
+          <option value="7">Temmuz</option><option value="8">Ağustos</option><option value="9">Eylül</option>
+          <option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option>
+        </select>
+      </div>
+    </div>
+    <div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--accent);font-weight:700;margin-bottom:8px">HESAPLAMA</div>
+      <div class="form-row">
+        <div class="form-group"><label>Aylık Maaş (₺)</label><input type="number" id="m-aylik" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'" oninput="calcMaas()"></div>
+        <div class="form-group"><label>Yol Parası (₺)</label><input type="number" id="m-yol" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'" oninput="calcToplamOdeme()"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Fazla Mesai (₺)</label><input type="number" id="m-mesai" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'" oninput="calcMaas()"></div>
+        <div class="form-group"><label>İzin Parası (₺)</label><input type="number" id="m-izin" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'" oninput="calcMaas()"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Gelmediği Gün</label><input type="number" id="m-gelmedi" value="0" min="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'" oninput="calcMaas()"></div>
+        <div class="form-group"><label>Hesaplanan Net Maaş (₺)</label><input type="number" id="m-net" value="0" readonly style="background:var(--card2);color:var(--accent2);font-weight:700"></div>
+      </div>
+      <div id="m-hesap-detay" style="font-size:12px;color:var(--text2);margin-top:6px;line-height:1.8"></div>
+      <div id="m-avans-panel" style="display:none;margin-top:8px">
+        <div class="form-row">
+          <div class="form-group"><label>Avans Düşümü (₺)</label><input type="number" id="m-avans-goster" value="0" readonly style="background:var(--card2);color:var(--accent3);font-weight:700"></div>
+          <div class="form-group"><label>Ödenecek Net (₺)</label><input type="number" id="m-odenecek" value="0" readonly style="background:var(--card2);color:var(--accent);font-weight:700;font-size:15px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Toplam Ödeme (₺)</label><input type="number" id="m-toplam" value="0" readonly style="background:var(--bg);color:var(--accent2);font-weight:700;font-size:16px"></div>
+      <div class="form-group"><label>Ödeme Şekli</label>
+        <select id="m-banka">
+          <option value="100">Nakit (Kasa)</option>
+          <option value="102-1">İş Bankası</option>
+          <option value="102-2">Ziraat Bankası</option>
+          <option value="102-3">Deniz Bank</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row single">
+      <div class="form-group"><label>Otel</label><select id="m-otel"><option>GENEL</option><option>LEO</option><option>CV</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeMaasModal()">İptal</button>
+      <button class="btn btn-primary" onclick="saveMaas()">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editId = null;
+let allData = [];
+let persListesi = []; // personel listesi (ise_giris bilgisiyle)
+
+function ayGunSayisi(yil, ay) {
+  return new Date(yil, ay, 0).getDate(); // ay=1..12
+}
+
+function onPersChange() {
+  const persId = parseInt(document.getElementById('m-pers').value);
+  const pers = persListesi.find(p => p.id === persId);
+  if (pers) document.getElementById('m-aylik').value = pers.net_maas || 0;
+  calcMaas();
+}
+
+function calcMaas() {
+  const persId = parseInt(document.getElementById('m-pers').value);
+  const yil = parseInt(document.getElementById('m-yil').value) || new Date().getFullYear();
+  const ay = parseInt(document.getElementById('m-ay').value) || new Date().getMonth()+1;
+  const aylikMaas = parseFloat(document.getElementById('m-aylik').value) || 0;
+  const gelmedi = parseInt(document.getElementById('m-gelmedi').value) || 0;
+  const mesai = parseFloat(document.getElementById('m-mesai').value) || 0;
+  const izin = parseFloat(document.getElementById('m-izin').value) || 0;
+
+  const toplamGun = ayGunSayisi(yil, ay);
+  
+  // İşe giriş ayı kontrolü
+  let calistigiGun = toplamGun - gelmedi;
+  let detay = '';
+  const pers = persListesi.find(p => p.id === persId);
+  if (pers && pers.ise_giris) {
+    const giris = new Date(pers.ise_giris);
+    if (giris.getFullYear() === yil && (giris.getMonth()+1) === ay) {
+      // İşe giriş ayı - giriş gününden itibaren hesapla
+      const girisGun = giris.getDate();
+      calistigiGun = toplamGun - girisGun + 1 - gelmedi;
+      detay = `İşe giriş: ${giris.toLocaleDateString('tr-TR')} · `;
+    }
+  }
+  calistigiGun = Math.max(0, calistigiGun);
+
+  const gunlukMaas = aylikMaas / toplamGun;
+  const netMaas = Math.round(gunlukMaas * calistigiGun);
+
+  detay += `${toplamGun} gün · Çalıştığı: ${calistigiGun} gün · Günlük: ${gunlukMaas.toLocaleString('tr-TR', {maximumFractionDigits:2})}₺`;
+  if (gelmedi > 0) detay += ` · Gelmediği: ${gelmedi} gün (-${Math.round(gunlukMaas*gelmedi).toLocaleString('tr-TR')}₺)`;
+  if (mesai > 0) detay += ` · Fazla mesai: +${mesai.toLocaleString('tr-TR')}₺`;
+  if (izin > 0) detay += ` · İzin: +${izin.toLocaleString('tr-TR')}₺`;
+
+  document.getElementById('m-hesap-detay').textContent = detay;
+  document.getElementById('m-net').value = netMaas;
+  loadAvanslar();
+}
+
+function calcToplamOdeme() {
+  const net = parseFloat(document.getElementById('m-net').value) || 0;
+  const yol = parseFloat(document.getElementById('m-yol').value) || 0;
+  const mesai = parseFloat(document.getElementById('m-mesai').value) || 0;
+  const izin = parseFloat(document.getElementById('m-izin').value) || 0;
+  const avans = parseFloat(document.getElementById('m-avans-tutar')?.value || 0);
+  const araToplam = net + yol + mesai + izin;
+  const odenecek = araToplam - avans;
+  document.getElementById('m-toplam').value = odenecek;
+  if (document.getElementById('m-odenecek'))
+    document.getElementById('m-odenecek').value = odenecek;
+}
+
+async function loadAvanslar() {
+  const persId = parseInt(document.getElementById('m-pers').value);
+  const yil = parseInt(document.getElementById('m-yil').value);
+  const ay = parseInt(document.getElementById('m-ay').value);
+  if (!persId || !yil || !ay) { calcToplamOdeme(); return; }
+  const data = await api(`/api/muhasebe/avans?personel_id=${persId}&yil=${yil}&ay=${ay}`);
+  const panel = document.getElementById('m-avans-panel');
+
+  if (!document.getElementById('m-avans-tutar')) {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.id = 'm-avans-tutar'; inp.value = 0;
+    document.getElementById('maas-modal').appendChild(inp);
+  }
+
+  if (data.length > 0) {
+    const toplam = data.reduce((s, a) => s + a.tutar, 0);
+    panel.style.display = '';
+    document.getElementById('m-avans-goster').value = toplam;
+    document.getElementById('m-avans-tutar').value = toplam;
+    _avans_toplam = toplam;
+  } else {
+    panel.style.display = 'none';
+    document.getElementById('m-avans-tutar').value = 0;
+    _avans_toplam = 0;
+  }
+  calcToplamOdeme();
+}
+const thisYear = new Date().getFullYear();
+const yilSel = document.getElementById('yil-sel');
+for (let y = thisYear-1; y <= thisYear+1; y++) {
+  const o = document.createElement('option');
+  o.value = y; o.textContent = y;
+  if (y === thisYear) o.selected = true;
+  yilSel.appendChild(o);
+}
+document.getElementById('m-yil').value = thisYear;
+document.getElementById('m-ay').value = new Date().getMonth() + 1;
+document.getElementById('m-tarih').value = new Date().toISOString().split('T')[0];
+document.getElementById('p-ise').value = new Date().toISOString().split('T')[0];
+
+let personelList = [];
+
+async function loadPersonel() {
+  personelList = await api('/api/muhasebe/personel');
+  // Bu ayki avansları çek
+  const bugun = new Date();
+  const avanslar = await api(`/api/muhasebe/avans?yil=${bugun.getFullYear()}&ay=${bugun.getMonth()+1}`);
+  personelList = personelList.map(p => ({
+    ...p,
+    bu_ay_avans: avanslar.filter(a => parseInt(a.personel_id) === parseInt(p.id)).reduce((s, a) => s + a.tutar, 0)
+  }));
+  document.getElementById('pers-tbody').innerHTML = personelList.map(p => `
+    <tr>
+      <td><strong>${p.ad_soyad}</strong></td>
+      <td>${p.gorev||'—'}</td>
+      <td style="text-align:right">${fmt(p.net_maas||0)}</td>
+      <td>${p.ise_giris ? new Date(p.ise_giris).toLocaleDateString('tr-TR') : '—'}</td>
+      <td>${p.telefon||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${p.tc_kimlik||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${p.banka_iban||'—'}</td>
+      <td style="text-align:right;color:var(--accent3);font-weight:600">${p.bu_ay_avans>0?p.bu_ay_avans.toLocaleString('tr-TR')+' ₺':'—'}</td>
+      <td>${p.aktif ? '<span class="green">✅ Aktif</span>' : '<span class="red">❌ Pasif</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn" style="padding:3px 8px;font-size:11px;margin-right:4px;background:var(--accent4);color:#000" onclick="duzenlePersonel(${p.id})">Düzenle</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:11px" onclick="silPersonel(${p.id})">Sil</button>
+        <button class="btn" style="padding:3px 8px;font-size:11px;background:var(--accent2);color:#000;margin-left:4px" onclick="avansVer(${p.id},'${p.ad_soyad}')">💰 Avans</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">Personel yok</td></tr>';
+}
+
+async function loadMaaslar() {
+  const yil = yilSel.value;
+  const data = await api(`/api/muhasebe/maaslar?yil=${yil}`);
+  allData = data;
+  let toplam = 0;
+  const AYLAR = ['','Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  document.getElementById('maas-tbody').innerHTML = data.map(r => {
+    const toplamOdeme = (r.net_odeme||0)+(r.yol_parasi||0)+(r.fazla_mesai||0)+(r.izin_parasi||0)-(r.avans_dusum||0);
+    toplam += toplamOdeme;
+    return `<tr>
+      <td>${fmtDate(r.tarih)}</td>
+      <td>${r.ad_soyad||'—'}</td>
+      <td>${AYLAR[r.donem_ay]||r.donem_ay} ${r.donem_yil}</td>
+      <td style="text-align:right" class="yellow">${fmt(r.net_odeme)}</td>
+      <td style="text-align:right">${(r.yol_parasi||0)>0?fmt(r.yol_parasi):'—'}</td>
+      <td style="text-align:right">${(r.fazla_mesai||0)>0?fmt(r.fazla_mesai):'—'}</td>
+      <td style="text-align:right">${(r.izin_parasi||0)>0?fmt(r.izin_parasi):'—'}</td>
+      <td style="text-align:right;color:var(--accent3)">${(r.gelmedi_gun||0)>0?r.gelmedi_gun+' gün':'—'}</td>
+      <td style="text-align:right;color:var(--accent3)">${(r.avans_dusum||0)>0?'-'+fmt(r.avans_dusum):'—'}</td>
+      <td style="text-align:right" class="green"><strong>${fmt(toplamOdeme)}</strong></td>
+      <td style="font-size:11px">${r.odeme_banka==="100"?"Nakit":r.odeme_banka==="102-1"?"Is Bankasi":r.odeme_banka==="102-2"?"Ziraat":r.odeme_banka==="102-3"?"Deniz Bank":r.odeme_banka||"--"}</td>
+      <td>${r.otel||''}</td>
+      <td style="white-space:nowrap">
+        <button class="btn" style="padding:3px 8px;font-size:11px;margin-right:4px;background:var(--accent4);color:#000" onclick="duzenle(${r.id})">Düzenle</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:11px" onclick="silMaas(${r.id})">Sil</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="13" style="text-align:center;color:var(--text2);padding:20px">Maaş kaydı yok</td></tr>';
+  document.getElementById('maas-toplam').textContent = `${yil} Yılı Toplam: ${fmt(toplam)} ₺`;
+}
+
+async function silMaas(id) {
+  if (!confirm('Bu maaş kaydı silinsin mi?')) return;
+  const r = await api('/api/muhasebe/personel/maas/sil', {id});
+  if (r.ok) { toast('Silindi ✓'); loadMaaslar(); }
+  else toast(r.error, 'error');
+}
+
+let editPersId = null;
+
+function openPersonelModal() {
+  editPersId = null;
+  document.getElementById('pers-modal').querySelector('h2').textContent = 'Personel Ekle';
+  document.getElementById('p-ad').value = '';
+  document.getElementById('p-gorev').value = '';
+  document.getElementById('p-ise').value = '';
+  document.getElementById('p-maas').value = 0;
+  document.getElementById('p-iban').value = '';
+  document.getElementById('p-tel').value = '';
+  document.getElementById('p-tc').value = '';
+  document.getElementById('pers-modal').classList.add('open');
+}
+
+function duzenlePersonel(id) {
+  const p = personelList.find(x => x.id === id);
+  if (!p) return;
+  editPersId = id;
+  document.getElementById('pers-modal').querySelector('h2').textContent = 'Personel Düzenle';
+  document.getElementById('p-ad').value = p.ad_soyad || '';
+  document.getElementById('p-gorev').value = p.gorev || '';
+  document.getElementById('p-ise').value = p.ise_giris || '';
+  document.getElementById('p-maas').value = p.net_maas || 0;
+  document.getElementById('p-iban').value = p.banka_iban || '';
+  document.getElementById('p-tel').value = p.telefon || '';
+  document.getElementById('p-tc').value = p.tc_kimlik || '';
+  document.getElementById('pers-modal').classList.add('open');
+}
+
+async function silPersonel(id) {
+  const p = personelList.find(x => x.id === id);
+  if (!confirm(`${p?.ad_soyad} silinsin mi?`)) return;
+  const r = await api('/api/muhasebe/personel/sil', {id});
+  if (r.ok) { toast('Silindi ✓'); loadPersonel(); }
+  else toast(r.error, 'error');
+}
+function closePersModal() { document.getElementById('pers-modal').classList.remove('open'); }
+
+async function savePersonel() {
+  const data = {
+    ad_soyad: document.getElementById('p-ad').value,
+    gorev: document.getElementById('p-gorev').value,
+    ise_giris: document.getElementById('p-ise').value,
+    net_maas: parseFloat(document.getElementById('p-maas').value)||0,
+    banka_iban: document.getElementById('p-iban').value,
+    telefon: document.getElementById('p-tel').value,
+    tc_kimlik: document.getElementById('p-tc').value,
+    id: editPersId,
+  };
+  if (!validateForm([
+    {id:'p-ad',      label:'Ad Soyad'},
+    {id:'p-gorev',   label:'Görev'},
+    {id:'p-ise',     label:'İşe Giriş Tarihi'},
+    {id:'p-maas',    label:'Net Maaş'},
+  ])) return;
+  const url = editPersId ? '/api/muhasebe/personel/guncelle' : '/api/muhasebe/personel/ekle';
+  const r = await api(url, data);
+  if (r.ok) { toast(editPersId ? 'Güncellendi ✓' : 'Personel eklendi ✓'); closePersModal(); loadPersonel(); }
+  else toast(r.error, 'error');
+}
+
+async function openMaasModal() {
+  editId = null;
+  document.getElementById('maas-modal-baslik').textContent = 'Maaş Kaydı Ekle';
+  // Personel listesini yükle
+  persListesi = await api('/api/muhasebe/personel');
+  if (!persListesi.length) { toast('Önce personel ekleyin!', 'error'); return; }
+  const persSel = document.getElementById('m-pers');
+  persSel.innerHTML = persListesi.map(p => `<option value="${p.id}">${p.ad_soyad}</option>`).join('');
+  // İlk personelin maaşını otomatik doldur
+  document.getElementById('m-aylik').value = persListesi[0].net_maas || 0;
+  document.getElementById('m-yol').value = 0;
+  document.getElementById('m-mesai').value = 0;
+  document.getElementById('m-izin').value = 0;
+  document.getElementById('m-gelmedi').value = 0;
+  document.getElementById('m-net').value = 0;
+  document.getElementById('m-toplam').value = 0;
+  document.getElementById('m-hesap-detay').textContent = '';
+  // avans-tutar sıfırla
+  const avTutar = document.getElementById('m-avans-tutar');
+  if (avTutar) avTutar.value = 0;
+  document.getElementById('m-avans-panel').style.display = 'none';
+  // Tarih ve dönem
+  const bugun = new Date();
+  document.getElementById('m-tarih').value = bugun.toISOString().split('T')[0];
+  document.getElementById('m-yil').value = bugun.getFullYear();
+  document.getElementById('m-ay').value = bugun.getMonth() + 1;
+  calcMaas();
+  document.getElementById('maas-modal').classList.add('open');
+}
+function closeMaasModal() { document.getElementById('maas-modal').classList.remove('open'); }
+
+// ── Avans ──────────────────────────────────────────────────────────────────
+let avansPersonelId = null;
+let _avans_toplam = 0;
+
+function avansVer(id, ad) {
+  avansPersonelId = id;
+  document.getElementById('avans-modal-baslik').textContent = `💰 ${ad} - Avans Ver`;
+  document.getElementById('av-tarih').value = new Date().toISOString().split('T')[0];
+  document.getElementById('av-tutar').value = 0;
+  document.getElementById('av-aciklama').value = '';
+  document.getElementById('avans-modal').classList.add('open');
+}
+function closeAvansModal() { document.getElementById('avans-modal').classList.remove('open'); }
+
+async function saveAvans() {
+  const tutar = parseFloat(document.getElementById('av-tutar').value) || 0;
+  if (!tutar) { toast('Tutar giriniz!', 'error'); return; }
+  const data = {
+    tarih: document.getElementById('av-tarih').value,
+    personel_id: avansPersonelId,
+    tutar: tutar,
+    odeme_sekli: document.getElementById('av-odeme').value,
+    aciklama: document.getElementById('av-aciklama').value,
+    otel: document.getElementById('av-otel').value,
+  };
+  const r = await api('/api/muhasebe/avans/ekle', data);
+  if (r.ok) { toast('Avans kaydedildi ✓'); closeAvansModal(); loadPersonel(); }
+  else toast(r.error, 'error');
+}
+
+document.getElementById('avans-modal').addEventListener('click', e => {
+  if (e.target.id === 'avans-modal') closeAvansModal();
+});
+
+async function duzenle(id) {
+  const r = allData.find(x => x.id === id);
+  if (!r) return;
+  editId = id;
+  document.getElementById('maas-modal-baslik').textContent = 'Maaş Kaydı Düzenle';
+  persListesi = await api('/api/muhasebe/personel');
+  document.getElementById('m-pers').innerHTML = persListesi.map(p =>
+    `<option value="${p.id}" ${p.id==r.personel_id?'selected':''}>${p.ad_soyad}</option>`).join('');
+  document.getElementById('m-tarih').value = r.tarih || '';
+  document.getElementById('m-yil').value = r.donem_yil || new Date().getFullYear();
+  document.getElementById('m-ay').value = r.donem_ay || 1;
+  document.getElementById('m-aylik').value = r.net_odeme || 0;
+  document.getElementById('m-yol').value = r.yol_parasi || 0;
+  document.getElementById('m-mesai').value = r.fazla_mesai || 0;
+  document.getElementById('m-izin').value = r.izin_parasi || 0;
+  document.getElementById('m-gelmedi').value = r.gelmedi_gun || 0;
+  document.getElementById('m-net').value = r.net_odeme || 0;
+  document.getElementById('m-toplam').value = (r.net_odeme||0)+(r.yol_parasi||0)+(r.fazla_mesai||0)+(r.izin_parasi||0);
+  document.getElementById('m-hesap-detay').textContent = '';
+  document.getElementById('maas-modal').classList.add('open');
+}
+
+async function saveMaas() {
+  const data = {
+    tarih: document.getElementById('m-tarih').value,
+    personel_id: document.getElementById('m-pers').value,
+    donem_yil: parseInt(document.getElementById('m-yil').value),
+    donem_ay: parseInt(document.getElementById('m-ay').value),
+    net_odeme:  parseFloat(document.getElementById('m-net').value)||0,
+    avans_dusum: _avans_toplam || parseFloat(document.getElementById('m-avans-tutar')?.value||0),
+    yol_parasi: parseFloat(document.getElementById('m-yol').value)||0,
+    fazla_mesai: parseFloat(document.getElementById('m-mesai').value)||0,
+    izin_parasi: parseFloat(document.getElementById('m-izin').value)||0,
+    gelmedi_gun: parseInt(document.getElementById('m-gelmedi').value)||0,
+    odeme_banka: document.getElementById('m-banka').value,
+    otel: document.getElementById('m-otel').value,
+  };
+  if (!validateForm([
+    {id:'m-tarih', label:'Ödeme Tarihi'},
+    {id:'m-pers',  label:'Personel'},
+    {id:'m-yil',   label:'Dönem Yılı'},
+    {id:'m-ay',    label:'Dönem Ayı'},
+    {id:'m-net',   label:'Net Ödeme'},
+  ])) return;
+  const url = editId ? '/api/muhasebe/personel/maas/guncelle' : '/api/muhasebe/maas/ekle';
+  if (editId) data.id = editId;
+  data.personel_id = parseInt(data.personel_id);
+  const r = await api(url, data);
+  if (r.ok) { toast('Maaş kaydedildi ✓'); closeMaasModal(); loadMaaslar(); }
+  else toast(r.error, 'error');
+}
+
+[document.getElementById('pers-modal'), document.getElementById('maas-modal')].forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+loadPersonel(); loadMaaslar();
+</script>
+{% endblock %}

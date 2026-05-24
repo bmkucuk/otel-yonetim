@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% set active = "cari" %}
+{% block title %}Cari{% endblock %}
+{% block page_title %}💳 Cari{% endblock %}
+
+{% block content %}
+
+<!-- Özet Kartlar -->
+<div id="cari-cards" style="margin-bottom:16px">
+  <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">
+    <!-- Rezervasyon Grubu -->
+    <div style="border:2px solid var(--accent);border-radius:8px;padding:6px 10px;flex:4;min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:4px">🏨 Rezervasyon</div>
+      <div style="display:flex;gap:8px">
+        <div class="stat-card" style="flex:1"><div class="label">Toplam Tutar</div><div class="value blue" id="oz-rez-toplam">—</div></div>
+        <div class="stat-card" style="flex:1"><div class="label">Kapora</div><div class="value green" id="oz-kapora">—</div></div>
+        <div class="stat-card" style="flex:1"><div class="label">Tahsilat</div><div class="value green" id="oz-tahsilat">—</div></div>
+        <div class="stat-card" style="flex:1"><div class="label">Bakiye</div><div class="value red" id="oz-rez-bak">—</div></div>
+      </div>
+    </div>
+    <!-- Adisyon Grubu -->
+    <div style="border:2px solid var(--accent2);border-radius:8px;padding:6px 10px;flex:3;min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--accent2);text-transform:uppercase;margin-bottom:4px">🍽️ Adisyon</div>
+      <div style="display:flex;gap:8px">
+        <div class="stat-card" style="flex:1"><div class="label">Toplam Tutar</div><div class="value blue" id="oz-adis-toplam">—</div></div>
+        <div class="stat-card" style="flex:1"><div class="label">Tahsilat</div><div class="value green" id="oz-adis-tah">—</div></div>
+        <div class="stat-card" style="flex:1"><div class="label">Bakiye</div><div class="value yellow" id="oz-adis-bak">—</div></div>
+      </div>
+    </div>
+    <!-- Toplam Alacak -->
+    <div class="stat-card" style="border:2px solid var(--accent3);flex:1;min-width:120px">
+      <div class="label">💰 Toplam Alacak</div>
+      <div class="value red" id="oz-toplam-alacak">—</div>
+      <div class="sub">rez + adisyon</div>
+    </div>
+  </div>
+</div>
+
+<!-- ÜST: Föy Listesi -->
+<div class="panel" style="margin-bottom:16px">
+  <div class="toolbar" style="margin-bottom:10px">
+    <div class="section-title" style="margin:0;border:0">💳 Föy Bazlı Cari Durum</div>
+    <div style="flex:1"></div>
+    <button id="btn-secim-kaldir" class="btn btn-default" style="font-size:11px;padding:4px 10px;display:none" onclick="secimKaldir()">✕ Seçimi Kaldır</button>
+    <input type="text" id="cari-search" placeholder="🔍 Misafir, föy, oda ara..."
+      style="padding:6px 12px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;width:250px"
+      oninput="filterCari()">
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Föy</th><th>Oda</th><th>Misafir</th><th>Giriş</th><th>Çıkış</th>
+        <th style="text-align:center">Durum</th>
+        <th style="text-align:right">Toplam</th>
+        <th style="text-align:right">Kapora</th>
+        <th style="text-align:right">Rez.Tahsilat</th>
+        <th style="text-align:right">Rez.Bakiye</th>
+        <th style="text-align:right">Adis.Toplam</th>
+        <th style="text-align:right">Adis.Tahsilat</th>
+        <th style="text-align:right">Adis.Bakiye</th>
+      </tr></thead>
+      <tbody id="cari-tbody"><tr class="loading-row"><td colspan="13"><span class="spinner"></span></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ALT: İki sütun -->
+<div id="alt-panel" style="display:none;gap:16px;grid-template-columns:3fr 2fr" class="panel-split">
+
+  <!-- Sol: Müşteri Cari Dökümü -->
+  <div class="panel">
+    <div class="section-title">📋 Müşteri Cari Dökümü</div>
+    <div id="musteri-info" style="font-size:12px;color:var(--text2);margin-bottom:10px;font-style:italic">Föy seçin</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:32px"></th>
+          <th>Tür</th>
+          <th>Tarih</th>
+          <th>Açıklama</th>
+          <th style="text-align:right">Tutar</th>
+          <th style="text-align:right">Tahsilat</th>
+          <th style="text-align:center">Ödeme</th>
+          <th style="text-align:right">Bakiye</th>
+          <th style="text-align:center">Durum</th>
+        </tr></thead>
+        <tbody id="dokum-tbody">
+          <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">Föy seçilmedi</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sağ: Ödeme Formu -->
+  <div class="panel">
+    <div id="odeme-section">
+      <div class="section-title">💵 Ödeme Al</div>
+
+      <!-- Rez Ödeme -->
+      <div id="rez-ozet-box" style="background:var(--header);border:2px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:16px;font-weight:800;color:var(--accent)">🏨 Rezervasyon</span>
+          <span id="rez-sec-toplam" style="font-size:14px;font-weight:700;color:#e55">—</span>
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:13px;font-weight:600;color:var(--text2)">Tutar (₺)</label>
+          <input type="number" id="rez-tutar" value="0" min="0"
+            style="font-size:20px;font-weight:700;padding:6px 8px;width:100%"
+            onfocus="if(this.value=='0')this.value=''"
+            onblur="if(this.value=='')this.value='0'">
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:13px;font-weight:600;color:var(--text2)">Ödeme Şekli</label>
+          <select id="rez-odeme" style="font-size:15px;font-weight:600;padding:6px 8px;width:100%">
+            <option>Nakit</option><option>Kredi Kartı</option>
+            <option>Havale</option><option>EFT</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:8px;font-size:15px;font-weight:700" onclick="saveRezTah()">💾 Rezervasyon Ödemesi Al</button>
+      </div>
+
+      <!-- Adis Ödeme -->
+      <div id="adis-ozet-box" style="background:var(--header);border:2px solid var(--accent4);border-radius:10px;padding:12px;margin-bottom:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:16px;font-weight:800;color:var(--accent4)">🍽️ Adisyon</span>
+          <span id="adis-sec-toplam" style="font-size:14px;font-weight:700;color:#e55">—</span>
+        </div>
+        <div id="adis-inputs" style="margin-bottom:8px"></div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:13px;font-weight:600;color:var(--text2)">Ödeme Şekli</label>
+          <select id="adis-odeme" style="font-size:15px;font-weight:600;padding:6px 8px;width:100%">
+            <option>Nakit</option><option>Kredi Kartı</option>
+            <option>Havale</option><option>EFT</option>
+          </select>
+        </div>
+        <button class="btn btn-warn" style="width:100%;padding:8px;font-size:15px;font-weight:700" onclick="saveAdisTah()">💾 Adisyon Ödemesi Al</button>
+      </div>
+
+      <div id="odeme-bos" style="color:var(--text2);font-size:13px;text-align:center;padding:20px">
+        Soldaki listeden ödeme alınacak kalemleri seçin
+      </div>
+
+      <button class="btn btn-default" style="width:100%;font-size:12px;margin-top:10px" onclick="onarAdis()">🔧 Adisyon Verisini Onar</button>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selFoy = null;
+let allData = [];
+let allAdisyon = [];
+let adisOdemeler = {};
+let ozetData = {};
+let selectedRez = false;
+let selectedAdisNolar = new Set();
+
+async function load() {
+  const d = await api('/api/cari');
+  allData = d.rezervasyonlar;
+  ozetData = d.ozet;
+  renderCari(allData);
+  if (selFoy) {
+    await loadDokum(selFoy);
+    updateCards();
+  } else updateCards();
+}
+
+function renderCari(data) {
+  const tbody = document.getElementById('cari-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr onclick="selectRow(${r.foy_no})" style="cursor:pointer${selFoy===r.foy_no?';background:#162a42;outline:2px solid var(--accent);outline-offset:-2px':''}" id="row-${r.foy_no}">
+      <td>${r.foy_no}</td><td>${r.oda_no}</td>
+      <td><strong>${r.musteri}</strong></td>
+      <td>${fmtDate(r.giris)}</td><td>${fmtDate(r.cikis)}</td>
+      <td style="text-align:center">
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;
+          background:${r.durum==='Kapora Yandı'?'#8B4513':r.durum==='Tamamlandı'?'#1a6b3a':'#1a3a6b'};color:#fff">
+          ${r.durum||'Aktif'}</span>
+      </td>
+      <td style="text-align:right">${fmt(r.toplam_fiyat)}</td>
+      <td style="text-align:right">${fmt(r.kapora)}</td>
+      <td style="text-align:right">${fmt(r.rez_tahsilat)}</td>
+      <td style="text-align:right" class="${(r.rez_bakiye||0)>0?'red':'green'}">${fmt(r.rez_bakiye)}</td>
+      <td style="text-align:right">${fmt(r.adisyon)}</td>
+      <td style="text-align:right">${fmt(r.adis_tahsilat)}</td>
+      <td style="text-align:right" class="${(r.adis_bakiye||0)>0?'red':'green'}">${fmt(r.adis_bakiye)}</td>
+    </tr>`).join('') || '<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--text2)">Kayıt yok</td></tr>';
+}
+
+function filterCari() {
+  const q = document.getElementById('cari-search').value.toLowerCase();
+  renderCari(q ? allData.filter(r =>
+    String(r.foy_no).includes(q) || String(r.oda_no).includes(q) || (r.musteri||'').toLowerCase().includes(q)
+  ) : allData);
+}
+
+async function selectRow(foy) {
+  selFoy = foy;
+  selectedRez = false;
+  selectedAdisNolar = new Set();
+  renderCari(allData);
+  document.getElementById('alt-panel').style.display = 'grid';
+  document.getElementById('btn-secim-kaldir').style.display = 'inline-block';
+  await loadDokum(foy);
+  updateCards();
+  document.getElementById('alt-panel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function loadDokum(foy_no) {
+  const r = allData.find(x => x.foy_no === foy_no);
+  if (!r) return;
+
+  document.getElementById('musteri-info').innerHTML =
+    `<strong style="color:var(--accent)">Föy #${r.foy_no} • ${r.musteri}</strong> &nbsp;|&nbsp; Oda ${r.oda_no} &nbsp;|&nbsp; ${fmtDate(r.giris)} – ${fmtDate(r.cikis)}`;
+  document.getElementById('musteri-info').style.fontStyle = 'normal';
+
+  const adisData = await api(`/api/adisyonlar?foy=${foy_no}`);
+  allAdisyon = adisData.adisyonlar || [];
+
+  // Rez tahsilat geçmişini çek
+  const tahData = await api(`/api/tahsilat/gecmis?foy_no=${foy_no}`);
+  r._tah_gecmis = tahData || [];
+
+  // Her adisyon için ödeme geçmişini çek
+  adisOdemeler = {};
+  await Promise.all(allAdisyon.map(async a => {
+    const od = await api(`/api/adisyon/odemeler?adisyon_no=${a.adisyon_no}`);
+    if (od && od.length) adisOdemeler[a.adisyon_no] = od;
+  }));
+
+  renderDokum(r);
+  updateOdemePanel();
+}
+
+function renderDokum(r) {
+  const tbody = document.getElementById('dokum-tbody');
+  let rows = [];
+
+  // --- REZ SATIRLARI: her tahsilat ayrı satır ---
+  if (r.durum !== 'Kapora Yandı') {
+    const rezToplam = (r.toplam_fiyat||0) - (r.kapora||0); // kapora düşüldükten sonraki borç
+    const tahsilatlar = (r._tah_gecmis||[]).filter(t => t.tur && t.tur.includes('Tahsilat') && !t.tur.includes('Adisyon'));
+    
+    if (tahsilatlar.length === 0) {
+      // Hiç ödeme yok - tek satır borç
+      const rezBak = r.rez_bakiye || 0;
+      rows.push(`<tr style="${selectedRez?'background:#162a42':''}">
+        <td style="text-align:center"><input type="checkbox" ${selectedRez?'checked':''} onchange="toggleRez(this.checked)"></td>
+        <td><span style="background:#1a3a6b;color:#7af;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">REZ</span></td>
+        <td style="font-size:12px;color:var(--text2)">—</td>
+        <td style="font-size:13px;font-weight:600">Föy #${r.foy_no} · Rez. Borcu</td>
+        <td style="text-align:right;font-weight:800;font-size:14px;color:#e55">${fmt(rezBak)}</td>
+        <td style="text-align:right;color:var(--text2)">—</td>
+        <td style="text-align:center;color:var(--text2)">—</td>
+        <td style="text-align:right;font-weight:700;font-size:14px;color:#e55">${fmt(rezBak)}</td>
+        <td style="text-align:center"><span style="padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;background:#5a1a1a;color:#fff">⚠ Borç</span></td>
+      </tr>`);
+    } else {
+      // Her tahsilat için geçmiş satır + hala borç varsa yeni borç satırı
+      let kalanBakiye = rezToplam;
+      tahsilatlar.forEach((t) => {
+        const oncekiBakiye = kalanBakiye;
+        kalanBakiye -= t.tutar;
+        const tamamlandi = kalanBakiye <= 0;
+        rows.push(`<tr>
+          <td></td>
+          <td><span style="background:#1a3a6b;color:#7af;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">REZ</span></td>
+          <td style="font-size:12px">${fmtDate(t.tarih)}</td>
+          <td style="font-size:13px;font-weight:600">Föy #${r.foy_no} · Rez. Borcu</td>
+          <td style="text-align:right;font-weight:800;font-size:14px;color:var(--text2)">${fmt(oncekiBakiye)}</td>
+          <td style="text-align:right;font-weight:700;font-size:14px;color:#5c5">${fmt(t.tutar)}</td>
+          <td style="text-align:center;font-size:12px;font-weight:600;color:#5c5">${t.odeme}</td>
+          <td style="text-align:right;font-weight:700;font-size:14px" class="${tamamlandi?'green':'orange'}">${fmt(Math.max(0,kalanBakiye))}</td>
+          <td style="text-align:center"><span style="padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;background:${tamamlandi?'#1a6b3a':'#4a3a0a'};color:#fff">${tamamlandi?'✓ Tamamlandı':'◑ Kısmi Ödeme'}</span></td>
+        </tr>`);
+      });
+      // Hala bakiye varsa yeni borç satırı (checkbox ile)
+      if (kalanBakiye > 0) {
+        rows.push(`<tr style="${selectedRez?'background:#162a42':''}">
+          <td style="text-align:center"><input type="checkbox" ${selectedRez?'checked':''} onchange="toggleRez(this.checked)"></td>
+          <td><span style="background:#1a3a6b;color:#7af;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">REZ</span></td>
+          <td style="font-size:12px;color:var(--text2)">—</td>
+          <td style="font-size:13px;font-weight:600">Föy #${r.foy_no} · Kalan Borç</td>
+          <td style="text-align:right;font-weight:800;font-size:14px;color:#e55">${fmt(kalanBakiye)}</td>
+          <td style="text-align:right;color:var(--text2)">—</td>
+          <td style="text-align:center;color:var(--text2)">—</td>
+          <td style="text-align:right;font-weight:700;font-size:14px;color:#e55">${fmt(kalanBakiye)}</td>
+          <td style="text-align:center"><span style="padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;background:#5a1a1a;color:#fff">⚠ Borç</span></td>
+        </tr>`);
+      }
+    }
+  }
+
+  // --- ADİSYON SATIRLARI ---
+  allAdisyon.forEach(a => {
+    const odendi = a.odendi === 1;
+    const odenenTutar = a.odenen_tutar || 0;
+    const kalanBakiye = a.tutar - odenenTutar;
+    const itemKey = a.adisyon_no;
+    const chk = selectedAdisNolar.has(itemKey);
+    const kismiOdeme = odenenTutar > 0 && !odendi;
+
+    // Adisyon ödeme geçmişi satırları
+    const odemeler = adisOdemeler[a.adisyon_no] || [];
+    odemeler.forEach(o => {
+      rows.push(`<tr>
+        <td></td>
+        <td><span style="background:#1a3a1a;color:#7fb;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">ADİS #${a.adisyon_no}</span></td>
+        <td style="font-size:12px">${fmtDate(o.tarih)}</td>
+        <td style="font-size:13px">${a.aciklama||'Adisyon'}</td>
+        <td style="text-align:right;font-weight:800;font-size:14px;color:var(--text2)">${fmt(a.tutar)}</td>
+        <td style="text-align:right;font-weight:700;font-size:14px;color:#5c5">${fmt(o.tutar)}</td>
+        <td style="text-align:center;font-size:12px;font-weight:600;color:#5c5">${o.odeme_sekli}</td>
+        <td style="text-align:right;font-weight:700;font-size:14px" class="${odendi?'green':'orange'}">${fmt(Math.max(0, a.tutar - odenenTutar))}</td>
+        <td style="text-align:center"><span style="padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;background:${odendi?'#1a6b3a':'#4a3a0a'};color:#fff">${odendi?'✓ Tamamlandı':'◑ Kısmi Ödeme'}</span></td>
+      </tr>`);
+    });
+
+    // Ana adisyon satırı - borç varsa checkbox ile
+    if (!odendi) {
+      rows.push(`<tr style="${chk?'background:#1a2a1a':''}">
+        <td style="text-align:center"><input type="checkbox" ${chk?'checked':''} onchange="toggleAdis(${itemKey}, this.checked)"></td>
+        <td><span style="background:#1a3a1a;color:#7fb;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">ADİS #${a.adisyon_no}</span></td>
+        <td style="font-size:12px">${a.tarih||'—'}</td>
+        <td style="font-size:13px">${a.aciklama||'Adisyon'}</td>
+        <td style="text-align:right;font-weight:800;font-size:14px;color:#e55">${fmt(kalanBakiye)}</td>
+        <td style="text-align:right;color:var(--text2)">—</td>
+        <td style="text-align:center;color:var(--text2)">—</td>
+        <td style="text-align:right;font-weight:700;font-size:14px;color:#e55">${fmt(kalanBakiye)}</td>
+        <td style="text-align:center"><span style="padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;background:#5a1a1a;color:#fff">⚠ Borç</span></td>
+      </tr>`);
+    }
+  });
+
+  tbody.innerHTML = rows.join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">Kayıt yok</td></tr>';
+}
+
+function secimKaldir() {
+  selFoy = null;
+  selectedRez = false;
+  selectedAdisNolar = new Set();
+  document.getElementById('alt-panel').style.display = 'none';
+  document.getElementById('btn-secim-kaldir').style.display = 'none';
+  updateCards();
+  updateOdemePanel();
+}
+
+function toggleRez(checked) {
+  selectedRez = checked;
+  const r = allData.find(x => x.foy_no === selFoy);
+  if (r) renderDokum(r);
+  updateOdemePanel();
+}
+
+function toggleAdis(adisNo, checked) {
+  if (checked) selectedAdisNolar.add(adisNo);
+  else selectedAdisNolar.delete(adisNo);
+  const r = allData.find(x => x.foy_no === selFoy);
+  if (r) renderDokum(r);
+  updateOdemePanel();
+}
+
+function updateOdemePanel() {
+  const r = selFoy ? allData.find(x => x.foy_no === selFoy) : null;
+  let rezToplam = selectedRez && r ? (r.rez_bakiye || 0) : 0;
+  let adisToplam = 0;
+
+  selectedAdisNolar.forEach(no => {
+    const a = allAdisyon.find(x => x.adisyon_no === no);
+    if (a) adisToplam += a.tutar || 0;
+  });
+
+  const rezBox = document.getElementById('rez-ozet-box');
+  const adisBox = document.getElementById('adis-ozet-box');
+  const bosMsg = document.getElementById('odeme-bos');
+
+  if (rezToplam > 0) {
+    rezBox.style.display = 'block';
+    document.getElementById('rez-sec-toplam').textContent = `Bakiye: ${fmt(rezToplam)} ₺`;
+    document.getElementById('rez-tutar').value = rezToplam;
+  } else { rezBox.style.display = 'none'; }
+
+  if (adisToplam > 0) {
+    adisBox.style.display = 'block';
+    document.getElementById('adis-sec-toplam').textContent = `Seçilen: ${fmt(adisToplam)} ₺`;
+    // Her seçili adisyon için ayrı tutar alanı oluştur (varsa üzerine yazma)
+    const adisInputsDiv = document.getElementById('adis-inputs');
+    adisInputsDiv.innerHTML = [...selectedAdisNolar].map(no => {
+      const a = allAdisyon.find(x => x.adisyon_no === no);
+      const kalanBakiye = a ? (a.tutar - (a.odenen_tutar||0)) : 0;
+      const mevcutDeger = document.getElementById(`adis-tutar-${no}`)?.value || kalanBakiye;
+      return `<div style="margin-bottom:8px">
+        <label style="font-size:12px;color:var(--text2)">ADİS #${no} — ${a?a.aciklama:''}
+          <span style="color:#e55;font-size:11px">Bakiye: ${fmt(kalanBakiye)} ₺</span>
+        </label>
+        <input type="number" id="adis-tutar-${no}" value="${mevcutDeger}" min="0" max="${kalanBakiye}"
+          style="font-size:18px;font-weight:700;padding:6px 8px;width:100%"
+          onfocus="if(this.value=='0')this.value=''"
+          onblur="if(this.value=='')this.value='0'">
+      </div>`;
+    }).join('');
+  } else { adisBox.style.display = 'none'; }
+
+  bosMsg.style.display = (rezToplam === 0 && adisToplam === 0) ? 'block' : 'none';
+  document.getElementById('odeme-section').style.display =
+    (r && r.durum === 'Kapora Yandı') ? 'none' : 'block';
+}
+
+function updateCards() {
+  const r = selFoy ? allData.find(x => x.foy_no === selFoy) : null;
+  if (r) {
+    document.getElementById('oz-rez-toplam').textContent = fmt(r.toplam_fiyat);
+    document.getElementById('oz-kapora').textContent = fmt(r.kapora);
+    document.getElementById('oz-tahsilat').textContent = fmt(r.rez_tahsilat);
+    document.getElementById('oz-rez-bak').textContent = fmt(r.rez_bakiye);
+    document.getElementById('oz-adis-toplam').textContent = fmt(r.adisyon);
+    document.getElementById('oz-adis-tah').textContent = fmt(r.adis_tahsilat);
+    document.getElementById('oz-adis-bak').textContent = fmt(r.adis_bakiye);
+    document.getElementById('oz-toplam-alacak').textContent = fmt((r.rez_bakiye||0)+(r.adis_bakiye||0));
+    document.querySelector('#cari-cards .stat-card:nth-child(3) .value').className = `value ${(r.rez_bakiye||0)>0?'red':'green'}`;
+    document.querySelector('#cari-cards .stat-card:nth-child(4) .value').className = `value ${(r.adis_bakiye||0)>0?'red':'green'}`;
+  } else {
+    document.getElementById('oz-rez-toplam').textContent = fmt(ozetData.toplam_rez);
+    document.getElementById('oz-kapora').textContent = fmt(ozetData.toplam_kapora);
+    document.getElementById('oz-tahsilat').textContent = fmt(ozetData.toplam_tahsilat);
+    document.getElementById('oz-rez-bak').textContent = fmt(ozetData.rez_bakiye);
+    document.getElementById('oz-adis-toplam').textContent = fmt(ozetData.adis_toplam);
+    document.getElementById('oz-adis-tah').textContent = fmt(ozetData.adis_tahsilat);
+    document.getElementById('oz-adis-bak').textContent = fmt(ozetData.adis_bakiye);
+    document.getElementById('oz-toplam-alacak').textContent = fmt((ozetData.rez_bakiye||0)+(ozetData.adis_bakiye||0));
+    document.querySelector('#cari-cards .stat-card:nth-child(3) .value').className = 'value red';
+    document.querySelector('#cari-cards .stat-card:nth-child(4) .value').className = 'value yellow';
+  }
+}
+
+async function saveRezTah() {
+  if (!selFoy) { toast('Önce bir föy seçin!', 'error'); return; }
+  const tutar = parseFloat(document.getElementById('rez-tutar').value);
+  if (tutar <= 0) { toast('Tutar > 0 olmalı!', 'error'); return; }
+  const odeme = document.getElementById('rez-odeme').value;
+  const r = await api('/api/tahsilat/rez', {foy_no: selFoy, tutar, odeme});
+  if (r.ok) {
+    toast('Rezervasyon ödemesi alındı ✓');
+    selectedRez = false;
+    await load();
+    await loadDokum(selFoy);
+  } else toast(r.error||'Hata', 'error');
+}
+
+async function saveAdisTah() {
+  if (!selFoy) { toast('Önce bir föy seçin!', 'error'); return; }
+  const odeme = document.getElementById('adis-odeme').value;
+  const adisyon_nolar = [...selectedAdisNolar];
+  if (!adisyon_nolar.length) { toast('Adisyon seçin!', 'error'); return; }
+
+  // Her adisyon için girilen tutarı topla
+  const adis_tutarlar = {};
+  let toplam = 0;
+  for (const no of adisyon_nolar) {
+    const inp = document.getElementById(`adis-tutar-${no}`);
+    const t = inp ? parseFloat(inp.value) : 0;
+    if (t <= 0) { toast(`Adis #${no} tutarı > 0 olmalı!`, 'error'); return; }
+    adis_tutarlar[no] = t;
+    toplam += t;
+  }
+  if (toplam <= 0) { toast('Tutar > 0 olmalı!', 'error'); return; }
+
+  const r = await api('/api/tahsilat/adis', {foy_no: selFoy, odeme, adisyon_nolar, adis_tutarlar});
+  if (r.ok) {
+    toast('Adisyon ödemesi alındı ✓');
+    selectedAdisNolar = new Set();
+    await load();
+    await loadDokum(selFoy);
+  } else toast(r.error||'Hata', 'error');
+}
+
+async function onarAdis() {
+  if (!selFoy) { toast('Önce bir föy seçin!', 'error'); return; }
+  const r = await api('/api/adisyon/onar', {foy_no: selFoy});
+  if (r.ok) { toast('Adisyon verisi onarıldı ✓'); load(); }
+  else toast(r.error||'Hata', 'error');
+}
+
+load();
+</script>
+{% endblock %}

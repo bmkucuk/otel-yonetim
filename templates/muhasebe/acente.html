@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% set active = "muh-acente" %}
+{% block title %}Acenteler{% endblock %}
+{% block page_title %}🤝 Acente Cari{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <label style="color:var(--text2);font-size:12px">Yıl:</label>
+  <select class="filter" id="yil-sel" onchange="load()"></select>
+  <select class="filter" id="acente-sel" onchange="load()"><option value="">Tüm Acenteler</option></select>
+  <div style="flex:1"></div>
+  <button class="btn btn-primary" onclick="openModal()">＋ Kayıt Ekle</button>
+</div>
+
+<div class="cards-row" id="kartlar" style="margin-bottom:16px"></div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr>
+  <th style="width:95px">Tarih</th>
+  <th style="width:120px">Acente</th>
+  <th style="width:60px">Föy</th>
+  <th>Misafir</th>
+  <th style="width:110px;text-align:right">Rez. Tutarı</th>
+  <th style="width:80px;text-align:center">Kom. Oranı</th>
+  <th style="width:110px;text-align:right">Komisyon</th>
+  <th style="width:110px;text-align:right">Gelen Ödeme</th>
+  <th style="width:60px;text-align:center">Otel</th>
+  <th style="width:100px"></th>
+</tr></thead>
+    <tbody id="tbody"><tr class="loading-row"><td colspan="10"><span class="spinner"></span></td></tr></tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-baslik">Acente Kaydı Ekle</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Tarih</label><input type="date" id="f-tarih" onclick="try{this.showPicker()}catch(e){}"></div>
+      <div class="form-group"><label>Acente</label><select id="f-acente"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Föy No</label><select id="f-foy" onchange="onFoyChange()"><option value="">— Seçin —</option></select></div>
+      <div class="form-group"><label>Rez. No</label><input type="text" id="f-rez-no"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Misafir</label><input type="text" id="f-misafir" readonly style="background:var(--bg);color:var(--accent2)"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Rez. Tutarı (₺)</label><input type="number" id="f-tutar" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'" oninput="hesaplaKomisyon()"></div>
+      <div class="form-group"><label>Komisyon Oranı (%)</label><input type="number" id="f-oran" value="15" oninput="hesaplaKomisyon()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Komisyon (₺)</label><input type="number" id="f-kom" value="0"></div>
+      <div class="form-group"><label>Komisyon Ödeme Şekli</label>
+        <select id="f-kom-odeme">
+          <option value="Mahsup">Mahsup (Acentenin Ödeyeceğinden Düşüldü)</option>
+          <option value="Banka">Bankadan Ödendi</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Gelen Ödeme (₺)</label><input type="number" id="f-gelen" value="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'"></div>
+      <div class="form-group"><label>Ödeme Bankası</label>
+        <select id="f-odeme-banka">
+          <option value="IS">İş Bankası</option>
+          <option value="ZRH">Ziraat Bankası</option>
+          <option value="DNZ">Deniz Bank</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Otel</label><select id="f-otel"><option>LEO</option><option>CV</option></select></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeModal()">İptal</button>
+      <button class="btn btn-primary" onclick="save()">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const thisYear = new Date().getFullYear();
+const yilSel = document.getElementById('yil-sel');
+for (let y = thisYear-2; y <= thisYear+1; y++) {
+  const o = document.createElement('option');
+  o.value = y; o.textContent = y;
+  if (y === thisYear) o.selected = true;
+  yilSel.appendChild(o);
+}
+
+let acenteler = [];
+let foyListesi = [];
+let editId = null;
+let allData = [];
+
+function onFoyChange() {
+  const foyNo = parseInt(document.getElementById('f-foy').value);
+  const rez = foyListesi.find(r => r.foy_no === foyNo);
+  if (rez) {
+    document.getElementById('f-misafir').value = rez.musteri;
+    document.getElementById('f-tutar').value = rez.toplam_fiyat || 0;
+    document.getElementById('f-otel').value = rez.otel || 'LEO';
+    hesaplaKomisyon();
+  }
+}
+
+function hesaplaKomisyon() {
+  const tutar = parseFloat(document.getElementById('f-tutar').value)||0;
+  const oran  = parseFloat(document.getElementById('f-oran').value)||0;
+  const kom = parseFloat((tutar * oran / 100).toFixed(2));
+  document.getElementById('f-kom').value = kom;
+  // Gelen ödeme = rez tutarı - komisyon (otomatik, düzenlenebilir)
+  document.getElementById('f-gelen').value = Math.max(0, tutar - kom).toFixed(2);
+}
+
+async function load() {
+  const yil = yilSel.value;
+  const acente = document.getElementById('acente-sel').value;
+  const d = await api(`/api/muhasebe/acente?yil=${yil}&acente=${acente}`);
+
+  acenteler = d.acenteler;
+  const sel = document.getElementById('acente-sel');
+  if (sel.options.length <= 1) {
+    acenteler.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a.kod; o.textContent = `${a.kod} — ${a.ad}`;
+      sel.appendChild(o);
+    });
+  }
+
+  const rows = d.rows;
+  let toplamRez = 0, toplamKom = 0, toplamGelen = 0;
+  rows.forEach(r => { toplamRez += r.rez_tutari||0; toplamKom += r.komisyon_tl||0; toplamGelen += r.gelen_odeme||0; });
+  const bakiye = toplamKom - toplamGelen;
+
+  document.getElementById('kartlar').innerHTML = `
+    <div class="stat-card"><div class="label">Rez. Tutarı</div><div class="value blue">${fmt(toplamRez)}</div></div>
+    <div class="stat-card"><div class="label">Toplam Komisyon</div><div class="value red">${fmt(toplamKom)}</div></div>
+    <div class="stat-card"><div class="label">Gelen Ödeme</div><div class="value green">${fmt(toplamGelen)}</div></div>
+    <div class="stat-card"><div class="label">Acente Bakiye</div><div class="value ${bakiye>0?'red':'green'}">${fmt(bakiye)}</div></div>
+  `;
+
+  allData = rows;
+  document.getElementById('tbody').innerHTML = rows.map(r => {
+    return `<tr>
+      <td>${fmtDate(r.tarih)}</td>
+      <td>${r.acente_kod}</td>
+      <td style="text-align:center">${r.foy_no||'—'}</td>
+      <td>${r.misafir||'—'}</td>
+      <td style="text-align:right">${fmt(r.rez_tutari)}</td>
+      <td style="text-align:center">${r.komisyon_oran||0}%</td>
+      <td class="red" style="text-align:right">${fmt(r.komisyon_tl)}</td>
+      <td class="green" style="text-align:right">${fmt(r.gelen_odeme)}</td>
+      <td>${r.otel||''}</td>
+    <td style="white-space:nowrap"><button class="btn" style="padding:3px 8px;font-size:11px;margin-right:4px;background:var(--accent4);color:#000" onclick="duzenle(${r.id})">Düzenle</button><button class="btn btn-danger" style="padding:3px 8px;font-size:11px" onclick="sil(${r.id})">Sil</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:24px">Kayıt yok</td></tr>';
+}
+
+async function openModal() {
+  editId = null;
+  document.getElementById('modal-baslik').textContent = 'Acente Kaydı Ekle';
+  const sel = document.getElementById('f-acente');
+  sel.innerHTML = acenteler.map(a => `<option value="${a.kod}">${a.kod} — ${a.ad}</option>`).join('');
+  document.getElementById('f-tarih').value = new Date().toISOString().split('T')[0];
+
+  // Föy listesini çek
+  const rezData = await api('/api/rezervasyonlar');
+  foyListesi = Array.isArray(rezData) ? rezData : (rezData.rezervasyonlar || []);
+  const foySel = document.getElementById('f-foy');
+  foySel.innerHTML = '<option value="">— Seçin —</option>' +
+    foyListesi.map(r => `<option value="${r.foy_no}">Föy #${r.foy_no} — ${r.musteri} (Oda ${r.oda_no})</option>`).join('');
+
+  // Formu temizle
+  document.getElementById('f-misafir').value = '';
+  document.getElementById('f-tutar').value = 0;
+  document.getElementById('f-rez-no').value = '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function save() {
+  if (!validateForm([
+    {id:'f-tarih',   label:'Tarih'},
+    {id:'f-acente',  label:'Acente'},
+    {id:'f-misafir', label:'Misafir'},
+    {id:'f-tutar',   label:'Rez. Tutarı'},
+  ])) return;
+  const data = {
+    tarih: document.getElementById('f-tarih').value,
+    acente_kod: document.getElementById('f-acente').value,
+    foy_no: document.getElementById('f-foy').value,
+    rez_no: document.getElementById('f-rez-no').value,
+    misafir: document.getElementById('f-misafir').value,
+    rez_tutari: parseFloat(document.getElementById('f-tutar').value)||0,
+    komisyon_oran: parseFloat(document.getElementById('f-oran').value)||15,
+    komisyon_tl: parseFloat(document.getElementById('f-kom').value)||0,
+    gelen_odeme: parseFloat(document.getElementById('f-gelen').value)||0,
+    otel: document.getElementById('f-otel').value,
+    komisyon_odeme: document.getElementById('f-kom-odeme').value,
+    odeme_banka: document.getElementById('f-odeme-banka').value,
+  };
+  const url = editId ? '/api/muhasebe/acente/guncelle' : '/api/muhasebe/acente/ekle';
+  if (editId) data.id = editId;
+  const r = await api(url, data);
+  if (r.ok) { toast(editId ? 'Güncellendi ✓' : 'Kayıt eklendi ✓'); closeModal(); load(); }
+  else toast(r.error, 'error');
+}
+
+async function duzenle(id) {
+  const r = allData.find(x => x.id === id);
+  if (!r) return;
+  editId = id;
+  document.getElementById('modal-baslik').textContent = 'Acente Düzenle';
+  const sel = document.getElementById('f-acente');
+  sel.innerHTML = acenteler.map(a => `<option value="${a.kod}" ${a.kod==r.acente_kod?'selected':''}>${a.kod} — ${a.ad}</option>`).join('');
+  document.getElementById('f-tarih').value = r.tarih || '';
+  document.getElementById('f-foy').innerHTML = `<option value="${r.foy_no}">${r.foy_no ? 'Föy #'+r.foy_no : '—'}</option>`;
+  document.getElementById('f-rez-no').value = r.rez_no || '';
+  document.getElementById('f-misafir').value = r.misafir || '';
+  document.getElementById('f-tutar').value = r.rez_tutari || 0;
+  document.getElementById('f-oran').value = r.komisyon_oran || 15;
+  document.getElementById('f-kom').value = r.komisyon_tl || 0;
+  document.getElementById('f-gelen').value = r.gelen_odeme || 0;
+  document.getElementById('f-otel').value = r.otel || 'LEO';
+  document.getElementById('modal').classList.add('open');
+}
+
+async function sil(id) {
+  if (!confirm('Bu acente kaydını silmek istediğinize emin misiniz?')) return;
+  const r = await api('/api/muhasebe/acente/sil', {id});
+  if (r.ok) { toast('Silindi ✓'); load(); }
+  else toast(r.error, 'error');
+}
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id==='modal') closeModal(); });
+load();
+</script>
+{% endblock %}

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% set active = "adisyon" %}
+{% block title %}Adisyon{% endblock %}
+{% block page_title %}🧾 Adisyon{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">
+  <!-- Sol: Yeni Adisyon -->
+  <div class="panel">
+    <div class="section-title">🧾 Yeni Adisyon Girişi</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Föy No</label>
+      <select id="a-foy" onchange="onFoyChange()"></select>
+    </div>
+    <div id="a-misafir-info" style="color:var(--text2);font-size:12px;margin-bottom:12px;min-height:18px"></div>
+    <div class="form-row" style="display:grid;grid-template-columns:90px 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group">
+        <label>Adisyon No</label>
+        <input type="number" id="a-no" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>Tarih</label>
+        <input type="date" id="a-tarih">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Açıklama</label>
+      <input type="text" id="a-aciklama" placeholder="Yemek, içecek, servis...">
+    </div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Tutar (₺)</label>
+      <input type="number" id="a-tutar" value="0" min="0" onfocus="if(this.value=='0'||this.value=='')this.value=''" onblur="if(this.value=='')this.value='0'">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="addAdisyon()">➕ Adisyon Ekle</button>
+  </div>
+
+  <!-- Sağ: Adisyon Listesi -->
+  <div>
+    <div class="toolbar" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0;border-bottom:none">📋 Adisyon Listesi</div>
+      <select class="filter" id="foy-filter" onchange="filterTable()">
+        <option value="">Tüm Föyler</option>
+      </select>
+      <div style="flex:1"></div>
+      <button class="btn btn-default" onclick="reload()">🔄 Yenile</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Adis.No</th><th>Föy</th><th>Oda</th><th>Misafir</th><th>Tarih</th><th>Tutar</th><th>İşlem</th></tr></thead>
+        <tbody id="adis-tbody"><tr class="loading-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="min-width:360px">
+    <h2>Adisyon Düzenle — #<span id="edit-adis-no"></span></h2>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Tutar (₺)</label>
+      <input type="number" id="e-tutar" min="0" onfocus="if(this.value=='0'||this.value=='')this.value=''" onblur="if(this.value=='')this.value='0'">
+    </div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Açıklama</label>
+      <input type="text" id="e-aciklama">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeEdit()">İptal</button>
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('a-tarih').value = today;
+
+let allAdisyonlar = [];
+let foyListesi = [];
+let editAdisNo = null;
+
+async function load() {
+  const d = await api('/api/adisyonlar');
+  allAdisyonlar = d.adisyonlar;
+  foyListesi = d.foy_listesi;
+
+  // Föy select
+  const foySelect = document.getElementById('a-foy');
+  foySelect.innerHTML = foyListesi.map(f =>
+    `<option value="${f.foy_no}">#${f.foy_no} — ${f.musteri} (Oda ${f.oda_no})</option>`
+  ).join('');
+
+  // Föy filter
+  const foyFilter = document.getElementById('foy-filter');
+  const curFilter = foyFilter.value;
+  foyFilter.innerHTML = '<option value="">Tüm Föyler</option>' +
+    foyListesi.map(f => `<option value="${f.foy_no}">#${f.foy_no} — ${f.musteri}</option>`).join('');
+  foyFilter.value = curFilter;
+
+  // Sonraki adisyon no
+  const maxNo = allAdisyonlar.reduce((m, a) => Math.max(m, a.adisyon_no||0), 0);
+  document.getElementById('a-no').value = maxNo + 1;
+
+  onFoyChange();
+  renderTable();
+}
+
+function onFoyChange() {
+  const foy = parseInt(document.getElementById('a-foy').value);
+  const r = foyListesi.find(f => f.foy_no === foy);
+  if (r) {
+    document.getElementById('a-misafir-info').textContent =
+      `Misafir: ${r.musteri}  |  Oda: ${r.oda_no}`;
+  }
+}
+
+function filterTable() {
+  renderTable();
+}
+
+function renderTable() {
+  const foyF = document.getElementById('foy-filter').value;
+  let data = allAdisyonlar;
+  if (foyF) data = data.filter(a => a.foy_no == foyF);
+
+  const tbody = document.getElementById('adis-tbody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:24px">Adisyon bulunamadı</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map((a, i) => `
+    <tr>
+      <td>${a.adisyon_no}</td>
+      <td>${a.foy_no}</td>
+      <td>${a.oda_no||'—'}</td>
+      <td>${a.musteri||'—'}</td>
+      <td>${fmtDate(a.tarih)}</td>
+      <td>${fmt(a.tutar)}</td>
+      <td>
+        ${a.odendi===1 ? 
+          `<span style="padding:3px 12px;border-radius:6px;font-size:11px;font-weight:700;background:#1a4a2a;color:#5d5">✓ Ödendi</span>` :
+          `<button class="btn btn-default" style="padding:3px 8px;font-size:11px;margin-right:4px" onclick='openEdit(${JSON.stringify(a)})'>Düzenle</button>
+           <button class="btn btn-danger" style="padding:3px 8px;font-size:11px" onclick="delAdisyon(${a.adisyon_no},${a.tutar})">Sil</button>`
+        }
+      </td>
+    </tr>`).join('');
+}
+
+async function addAdisyon() {
+  const foy = parseInt(document.getElementById('a-foy').value);
+  const no  = parseInt(document.getElementById('a-no').value);
+  const tutar = parseFloat(document.getElementById('a-tutar').value);
+  if (!validateForm([
+    {id:'a-foy',   label:'Föy No'},
+    {id:'a-tarih', label:'Tarih'},
+    {id:'a-tutar', label:'Tutar'},
+  ])) return;
+  if (!no) { toast('Adisyon no girin!', 'error'); return; }
+  if (allAdisyonlar.some(a => a.adisyon_no === no)) { toast(`Adisyon #${no} zaten mevcut!`, 'error'); return; }
+
+  const r = await api('/api/adisyon/ekle', {
+    adisyon_no: no, foy_no: foy,
+    tarih: document.getElementById('a-tarih').value,
+    tutar,
+    aciklama: document.getElementById('a-aciklama').value,
+  });
+  if (r.ok) {
+    toast(`Adisyon #${no} eklendi ✓ (Föy #${foy})`);
+    document.getElementById('a-tutar').value = 0;
+    document.getElementById('a-aciklama').value = '';
+    load();
+  } else toast(r.error||'Hata', 'error');
+}
+
+function openEdit(a) {
+  editAdisNo = a.adisyon_no;
+  document.getElementById('edit-adis-no').textContent = a.adisyon_no;
+  document.getElementById('e-tutar').value = a.tutar;
+  document.getElementById('e-aciklama').value = a.aciklama||'';
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEdit() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+async function saveEdit() {
+  const r = await api('/api/adisyon/guncelle', {
+    adisyon_no: editAdisNo,
+    tutar: parseFloat(document.getElementById('e-tutar').value),
+
+  });
+  if (r.ok) { toast(`Adisyon #${editAdisNo} güncellendi ✓`); closeEdit(); load(); }
+  else toast(r.error||'Hata', 'error');
+}
+
+async function delAdisyon(no, tutar) {
+  if (!confirm(`Adisyon #${no} silinsin mi?\nTutar: ${fmt(tutar)}`)) return;
+  const r = await api('/api/adisyon/sil', {adisyon_no: no});
+  if (r.ok) { toast(`Adisyon #${no} silindi`); load(); }
+  else toast(r.error||'Hata', 'error');
+}
+
+async function reload() {
+  await api('/api/yenile', {});
+  load();
+}
+
+document.getElementById('edit-modal').addEventListener('click', e => {
+  if (e.target.id === 'edit-modal') closeEdit();
+});
+
+load();
+</script>
+{% endblock %}

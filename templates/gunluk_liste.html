@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% set active = "gunluk-liste" %}
+{% block title %}Günlük Liste{% endblock %}
+{% block page_title %}📅 Günlük Liste{% endblock %}
+
+{% block content %}
+
+<!-- Tarih seçici + özet -->
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="btn" onclick="changeDate(-1)" style="padding:6px 12px;font-size:16px">‹</button>
+    <input type="date" id="tarih-input" class="form-control"
+      style="width:160px;font-size:14px;font-weight:600;text-align:center;cursor:pointer"
+      onchange="loadData()"
+      onclick="try{this.showPicker()}catch(e){}">
+    <button class="btn" onclick="changeDate(1)" style="padding:6px 12px;font-size:16px">›</button>
+    <button class="btn" onclick="goToday()" style="padding:6px 12px;font-size:13px">Bugün</button>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap" id="ozet-bar">
+    <span class="badge-ozet" id="oz-kahvalti" style="background:var(--accent4)">🍳 Kahvaltı: —</span>
+    <span class="badge-ozet" id="oz-giris"    style="background:var(--accent2)">🔑 Giriş: —</span>
+    <span class="badge-ozet" id="oz-cikis"    style="background:var(--accent3)">🚪 Çıkış: —</span>
+  </div>
+
+</div>
+
+<!-- 3 panel yan yana -->
+<div class="gl-grid" id="gl-grid">
+
+  <!-- KAHVALTI -->
+  <div class="panel gl-panel">
+    <div class="section-title" style="color:var(--accent4)">🍳 Kahvaltı Listesi</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
+      Giriş günü hariç · Çıkış günü dahil
+    </div>
+    <div id="tbl-kahvalti-wrap">
+      <table class="gl-table" id="tbl-kahvalti">
+        <thead><tr>
+          <th>Oda</th><th>Otel</th><th>Misafir</th><th>Kişi</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="gl-toplam" id="top-kahvalti"></div>
+  </div>
+
+  <!-- GİRİŞ -->
+  <div class="panel gl-panel">
+    <div class="section-title" style="color:var(--accent2)">🔑 Giriş Listesi</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
+      Bugün check-in yapacak misafirler
+    </div>
+    <div id="tbl-giris-wrap">
+      <table class="gl-table" id="tbl-giris">
+        <thead><tr>
+          <th>Oda</th><th>Otel</th><th>Misafir</th><th>Kişi</th><th>Çıkış</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="gl-toplam" id="top-giris"></div>
+  </div>
+
+  <!-- ÇIKIŞ -->
+  <div class="panel gl-panel">
+    <div class="section-title" style="color:var(--accent3)">🚪 Çıkış Listesi</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
+      Bugün check-out yapacak misafirler
+    </div>
+    <div id="tbl-cikis-wrap">
+      <table class="gl-table" id="tbl-cikis">
+        <thead><tr>
+          <th>Oda</th><th>Otel</th><th>Misafir</th><th>Kişi</th><th>Giriş</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="gl-toplam" id="top-cikis"></div>
+  </div>
+
+</div>
+
+<style>
+.gl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.gl-panel { display:flex; flex-direction:column; }
+.gl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.gl-table thead tr {
+  background: var(--bg);
+}
+.gl-table th {
+  padding: 7px 8px;
+  text-align: left;
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  border-bottom: 1px solid var(--border);
+}
+.gl-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.gl-table tr:last-child td { border-bottom: none; }
+.gl-table tr:hover td { background: var(--card2); }
+.gl-table .otel-leo  { color: var(--accent);  font-weight:600; font-size:11px; }
+.gl-table .otel-cv   { color: var(--accent4); font-weight:600; font-size:11px; }
+.gl-toplam {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.badge-ozet {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+.empty-msg {
+  padding: 20px;
+  text-align: center;
+  color: var(--text2);
+  font-size: 13px;
+}
+
+/* YAZICI STILI - GL özel */
+@media print {
+  #ozet-bar { display: none !important; }
+  .gl-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px !important; }
+  .gl-panel { break-inside: avoid; }
+  .gl-table { font-size: 11px !important; }
+  .gl-table th, .gl-table td { padding: 4px 6px !important; }
+  .gl-toplam { background: #f5f5f5 !important; color: #333 !important; }
+  .print-tarih { display: block !important; }
+}
+.print-tarih { display: none; }
+</style>
+
+<!-- Yazdırma başlığı (sadece print görünür) -->
+<div class="print-tarih" id="print-tarih-baslik"
+  style="font-size:16px;font-weight:700;margin-bottom:16px;text-align:center">
+  🏨 Otel Leo & Cunda Villa — Günlük Liste
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const today = new Date().toISOString().split('T')[0];
+
+function init() {
+  const inp = document.getElementById('tarih-input');
+  inp.value = today;
+  loadData();
+}
+
+function changeDate(delta) {
+  const inp = document.getElementById('tarih-input');
+  const parts = inp.value.split('-');
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  d.setDate(d.getDate() + delta);
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  inp.value = `${y}-${m}-${day}`;
+  loadData();
+}
+
+function goToday() {
+  document.getElementById('tarih-input').value = today;
+  loadData();
+}
+
+function fmt(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function buildRows(data, type) {
+  const cols = type === 'kahvalti' ? 4 : 5;
+  if (!data.length) return `<tr><td colspan="${cols}" class="empty-msg">Kayıt yok</td></tr>`;
+  return data.map(r => {
+    const otelCls = r.otel === 'LEO' ? 'otel-leo' : 'otel-cv';
+    const kisiStr = r.cocuk > 0 ? `${r.yetiskin}+${r.cocuk}` : `${r.yetiskin}`;
+    if (type === 'kahvalti') {
+      return `<tr>
+        <td>${r.oda_no}</td>
+        <td class="${otelCls}">${r.otel}</td>
+        <td>${r.musteri}</td>
+        <td>${kisiStr}</td>
+      </tr>`;
+    } else if (type === 'giris') {
+      return `<tr>
+        <td>${r.oda_no}</td>
+        <td class="${otelCls}">${r.otel}</td>
+        <td>${r.musteri}</td>
+        <td>${kisiStr}</td>
+        <td>${fmt(r.cikis)}</td>
+      </tr>`;
+    } else { // cikis
+      return `<tr>
+        <td>${r.oda_no}</td>
+        <td class="${otelCls}">${r.otel}</td>
+        <td>${r.musteri}</td>
+        <td>${kisiStr}</td>
+        <td>${fmt(r.giris)}</td>
+      </tr>`;
+    }
+  }).join('');
+}
+
+function toplam(data, label) {
+  if (!data.length) return `${label}: 0 oda`;
+  const leo = data.filter(r => r.otel === 'LEO').length;
+  const cv  = data.filter(r => r.otel === 'CV').length;
+  const kisi = data.reduce((s, r) => s + (r.yetiskin||0) + (r.cocuk||0), 0);
+  let parts = [`${data.length} oda · ${kisi} kişi`];
+  if (leo) parts.push(`LEO: ${leo}`);
+  if (cv)  parts.push(`CV: ${cv}`);
+  return parts.join(' &nbsp;|&nbsp; ');
+}
+
+async function loadData() {
+  const tarih = document.getElementById('tarih-input').value;
+
+  // Yazdırma başlığını güncelle
+  document.getElementById('print-tarih-baslik').textContent =
+    `🏨 Otel Leo & Cunda Villa — Günlük Liste · ${fmt(tarih)}`;
+
+  try {
+    const res = await fetch(`/api/gunluk-liste?tarih=${tarih}`);
+    const d = await res.json();
+
+    // Kahvaltı
+    document.querySelector('#tbl-kahvalti tbody').innerHTML = buildRows(d.kahvalti, 'kahvalti');
+    document.getElementById('top-kahvalti').innerHTML = toplam(d.kahvalti, 'Kahvaltı');
+    document.getElementById('oz-kahvalti').textContent =
+      `🍳 Kahvaltı: ${d.kahvalti.length} oda`;
+
+    // Giriş
+    document.querySelector('#tbl-giris tbody').innerHTML = buildRows(d.girisler, 'giris');
+    document.getElementById('top-giris').innerHTML = toplam(d.girisler, 'Giriş');
+    document.getElementById('oz-giris').textContent =
+      `🔑 Giriş: ${d.girisler.length} oda`;
+
+    // Çıkış
+    document.querySelector('#tbl-cikis tbody').innerHTML = buildRows(d.cikislar, 'cikis');
+    document.getElementById('top-cikis').innerHTML = toplam(d.cikislar, 'Çıkış');
+    document.getElementById('oz-cikis').textContent =
+      `🚪 Çıkış: ${d.cikislar.length} oda`;
+
+  } catch(e) {
+    toast('Veri yüklenemedi', 'error');
+  }
+}
+
+init();
+</script>
+{% endblock %}

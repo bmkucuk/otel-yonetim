@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block title %}Dashboard — Otel Leo{% endblock %}
+{% block page_title %}🏠 Dashboard{% endblock %}
+
+{% block content %}
+<div class="cards-row" id="stat-cards">
+  <div class="stat-card"><div class="label">Bugün Giriş</div><div class="value" id="s-giris">—</div><div class="sub">rezervasyon</div></div>
+  <div class="stat-card"><div class="label">Bugün Çıkış</div><div class="value" id="s-cikis">—</div><div class="sub">rezervasyon</div></div>
+  <div class="stat-card"><div class="label">Otelde (Leo)</div><div class="value leo-tag" id="s-leo">—</div><div class="sub">oda dolu</div></div>
+  <div class="stat-card"><div class="label">Otelde (CV)</div><div class="value cv-tag" id="s-cv">—</div><div class="sub">oda dolu</div></div>
+  <div class="stat-card"><div class="label">☕ Bugün Kahvaltı</div><div class="value yellow" id="s-kah">—</div><div class="sub">kişi</div></div>
+  <div class="stat-card"><div class="label">Toplam Alacak</div><div class="value red" id="s-alacak">—</div><div class="sub">bekleyen bakiye</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div>
+    <div class="section-title">📥 Bugün Giriş Yapacaklar</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Oda</th><th>Otel</th><th>Misafir</th><th>Gün</th><th>Kanal</th></tr></thead>
+        <tbody id="giris-tbody"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <div class="section-title">📤 Bugün Çıkış Yapacaklar</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Oda</th><th>Otel</th><th>Misafir</th><th>Giriş</th><th>Bakiye</th></tr></thead>
+        <tbody id="cikis-tbody"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">🟢 Şu An Otelde Olan Misafirler</div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Oda</th><th>Otel</th><th>Misafir</th><th>Giriş</th><th>Çıkış</th><th>Gün</th><th>Rez.Bakiye</th><th>Adisyon</th><th>Adis.Bakiye</th></tr></thead>
+    <tbody id="aktif-tbody"><tr class="loading-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function load() {
+  const d = await api('/api/dashboard');
+
+  document.getElementById('s-giris').textContent  = d.stats.bugun_giris;
+  document.getElementById('s-cikis').textContent  = d.stats.bugun_cikis;
+  document.getElementById('s-leo').textContent    = d.stats.leo_aktif;
+  document.getElementById('s-cv').textContent     = d.stats.cv_aktif;
+  document.getElementById('s-kah').textContent    = d.stats.kahvalti_kisi;
+  document.getElementById('s-alacak').textContent = fmt(d.stats.toplam_alacak);
+
+  const girisBody = document.getElementById('giris-tbody');
+  girisBody.innerHTML = d.girisler.length ? d.girisler.map(r => `
+    <tr>
+      <td>${r.oda_no}</td>
+      <td class="${r.otel=='LEO'?'leo-tag':'cv-tag'}">${r.otel}</td>
+      <td>${r.musteri}</td>
+      <td>${r.toplam_gun} gün</td>
+      <td>${r.kanal||'—'}</td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">Bugün giriş yok</td></tr>';
+
+  const cikisBody = document.getElementById('cikis-tbody');
+  cikisBody.innerHTML = d.cikislar.length ? d.cikislar.map(r => `
+    <tr>
+      <td>${r.oda_no}</td>
+      <td class="${r.otel=='LEO'?'leo-tag':'cv-tag'}">${r.otel}</td>
+      <td>${r.musteri}</td>
+      <td>${fmtDate(r.giris)}</td>
+      <td class="${(r.rez_bakiye||0)>0?'red':'green'}">${fmt(r.rez_bakiye||0)}</td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">Bugün çıkış yok</td></tr>';
+
+  const aktifBody = document.getElementById('aktif-tbody');
+  aktifBody.innerHTML = d.aktifler.length ? d.aktifler.map(r => `
+    <tr>
+      <td>${r.oda_no}</td>
+      <td class="${r.otel=='LEO'?'leo-tag':'cv-tag'}">${r.otel}</td>
+      <td>${r.musteri}</td>
+      <td>${fmtDate(r.giris)}</td>
+      <td>${fmtDate(r.cikis)}</td>
+      <td>${r.toplam_gun} gün</td>
+      <td class="${(r.rez_bakiye||0)>0?'red':'green'}">${fmt(r.rez_bakiye||0)}</td>
+      <td>${fmt(r.adisyon||0)}</td>
+      <td class="${(r.adis_bakiye||0)>0?'red':'green'}">${fmt(r.adis_bakiye||0)}</td>
+    </tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">Şu an otelde misafir yok</td></tr>';
+}
+load();
+</script>
+{% endblock %}
