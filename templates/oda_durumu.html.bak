@@ -5,61 +5,48 @@
 
 {% block content %}
 <style>
-.oda-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-.nav-buttons-group{display:flex;gap:6px;align-items:center}
+.oda-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .oda-nav button{background:var(--card2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px}
 .oda-nav button:hover{border-color:var(--accent);color:var(--accent)}
 .oda-nav .period{flex:1;text-align:center;font-weight:700;font-size:14px;color:var(--text)}
-.legend{display:flex;gap:18px;margin-bottom:12px;font-size:13px;align-items:center;flex-wrap:wrap}
-.legend span{display:flex;align-items:center;gap:8px;font-weight:500}
-.leg-dot{width:18px;height:18px;border-radius:4px}
+.legend{display:flex;gap:20px;margin-bottom:12px;font-size:12px}
+.legend span{display:flex;align-items:center;gap:6px}
+.leg-dot{width:12px;height:12px;border-radius:3px}
 
-/* Sticky header bar */
-.sticky-bar{position:sticky;top:0;z-index:20;background:var(--bg, #0d1117);padding-bottom:8px}
-
-.grid-wrap{overflow-x:auto}
+.grid-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px)}
 .oda-grid{display:grid;gap:2px;min-width:max-content}
 .header-row,.oda-row{display:contents}
-.day-header{background:var(--header);color:var(--text2);font-size:11px;font-weight:700;padding:6px 4px;text-align:center;width:60px;border:1px solid var(--border);border-radius:3px;white-space:pre-line;position:sticky;top:0;z-index:5}
+.day-header{background:var(--header);color:var(--text2);font-size:11px;font-weight:700;padding:6px 4px;text-align:center;width:60px;border:1px solid var(--border);border-radius:3px;white-space:pre-line}
 .day-header.today{color:var(--accent);border-color:var(--accent)40}
 .oda-label{background:var(--card);padding:5px 8px;font-size:12px;font-weight:700;border-radius:4px;border:1px solid var(--border);width:100px;white-space:nowrap;display:flex;align-items:center}
 .oda-label.leo{color:var(--leo)}
 .oda-label.cv{color:var(--cv)}
-.section-header{background:var(--header);color:var(--text);font-size:15px;font-weight:800;padding:10px 8px;border-radius:3px;grid-column:1/-1;margin:8px 0 2px;text-align:center;letter-spacing:2px}
+.section-header{background:var(--header);color:var(--text2);font-size:11px;font-weight:700;padding:5px 8px;border-radius:3px;grid-column:1/-1;margin:6px 0 2px}
 .cell{width:60px;height:34px;border-radius:3px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:default;position:relative}
 .cell.bos{background:var(--sidebar)}
 .cell.bos.today{background:var(--card2);border-color:var(--accent)40}
-
-/* LEO → Canlı mavi */
-.cell.dolu-leo{background:#0a4a7a;color:#00cfff;border-color:#00cfff}
-.cell.dolu-leo.giris{background:#0070cc;color:#fff;border-color:#00cfff}
-
-/* CV → Canlı turuncu */
-.cell.dolu-cv{background:#7a2e00;color:#ff6b00;border-color:#ff6b00}
-.cell.dolu-cv.giris{background:#cc4a00;color:#fff;border-color:#ff6b00}
-
+.cell.dolu-leo{background:#0e2038;color:var(--leo);border-color:var(--leo)40}
+.cell.dolu-leo.giris{background:#1a3a5a}
+.cell.dolu-cv{background:#0e2a14;color:var(--cv);border-color:var(--cv)40}
+.cell.dolu-cv.giris{background:#1a3a1a}
 .cell:hover .tooltip{display:block}
 .tooltip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0a1628;border:1px solid var(--border);padding:8px 12px;border-radius:6px;white-space:nowrap;font-size:12px;color:var(--text);z-index:10;pointer-events:none;box-shadow:0 4px 16px #0006}
 .tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#0a1628}
 </style>
 
-<div class="sticky-bar">
-  <div class="oda-nav">
-    <div class="nav-buttons-group">
-      <button onclick="shift(-7)">◀ Önceki Hafta</button>
-      <button onclick="goToday()" style="color:var(--accent)">Bugün</button>
-      <button onclick="shift(7)">Sonraki Hafta ▶</button>
-      <button onclick="reload()" id="yenile-btn">🔄 Yenile</button>
-    </div>
-    <div class="period" id="period-lbl">—</div>
-  </div>
+<div class="oda-nav">
+  <button onclick="shift(-7)">◀ Önceki Hafta</button>
+  <button onclick="goToday()" style="color:var(--accent)">Bugün</button>
+  <div class="period" id="period-lbl">—</div>
+  <button onclick="shift(7)">Sonraki Hafta ▶</button>
+  <button onclick="reload()" style="margin-left:8px">🔄 Yenile</button>
+</div>
 
-  <div class="legend">
-    <span><div class="leg-dot" style="background:#0070cc;border:2px solid #00cfff"></div> Otel Leo (Dolu)</span>
-    <span><div class="leg-dot" style="background:#cc4a00;border:2px solid #ff6b00"></div> Cunda Villa (Dolu)</span>
-    <span><div class="leg-dot" style="background:var(--sidebar);border:1px solid var(--border)"></div> Boş</span>
-    <span style="color:var(--text2);font-size:12px">★ Parlak renk = Giriş günü</span>
-  </div>
+<div class="legend">
+  <span><div class="leg-dot" style="background:#1a3a5a;border:1px solid var(--leo)"></div> Otel Leo</span>
+  <span><div class="leg-dot" style="background:#1a3a1a;border:1px solid var(--cv)"></div> Cunda Villa</span>
+  <span><div class="leg-dot" style="background:var(--sidebar);border:1px solid var(--border)"></div> Boş</span>
+  <span style="color:var(--text2);font-size:11px">Parlak renk = Giriş günü</span>
 </div>
 
 <div class="grid-wrap">
@@ -88,12 +75,8 @@ function goToday() {
 }
 
 async function reload() {
-  const btn = document.getElementById('yenile-btn');
-  btn.textContent = '⏳ Yükleniyor...';
-  btn.disabled = true;
-  await load();
-  btn.textContent = '🔄 Yenile';
-  btn.disabled = false;
+  await api('/api/yenile', {});
+  load();
 }
 
 async function load() {
@@ -115,10 +98,6 @@ function render(d) {
 
   const dayNames = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 
-  // Sticky header offset: sticky-bar height
-  const barH = document.querySelector('.sticky-bar').offsetHeight;
-  document.querySelectorAll('.day-header').forEach(el => el.style.top = barH + 'px');
-
   let html = `<div style="display:grid;grid-template-columns:100px repeat(${dates.length},60px);gap:2px">`;
 
   // Header row
@@ -126,7 +105,7 @@ function render(d) {
   for (const dt of dates) {
     const d2 = new Date(dt + 'T00:00:00');
     const isToday = dt === today;
-    html += `<div class="day-header${isToday?' today':''}" style="top:${barH}px">${dayNames[d2.getDay()]}\n${d2.getDate()}</div>`;
+    html += `<div class="day-header${isToday?' today':''}">${dayNames[d2.getDay()]}\n${d2.getDate()}</div>`;
   }
 
   // Group by otel
@@ -134,7 +113,7 @@ function render(d) {
   for (const room of grid) {
     if (room.otel !== lastOtel) {
       lastOtel = room.otel;
-      const label = room.otel === 'LEO' ? 'OTEL LEO' : 'CUNDA VİLLA';
+      const label = room.otel === 'LEO' ? '── OTEL LEO ──' : '── CUNDA VİLLA ──';
       html += `<div class="section-header">${label}</div>`;
     }
 
