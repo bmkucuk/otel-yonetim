@@ -5,28 +5,131 @@
 
 {% block content %}
 <style>
-.oda-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.oda-nav{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .nav-buttons-group{display:flex;gap:6px;align-items:center}
 .oda-nav button{background:var(--card2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px}
 .oda-nav button:hover{border-color:var(--accent);color:var(--accent)}
 .oda-nav .period{flex:1;text-align:center;font-weight:700;font-size:14px;color:var(--text)}
-.legend{display:flex;gap:18px;margin-bottom:12px;font-size:13px;align-items:center;flex-wrap:wrap}
+.legend{display:flex;gap:18px;margin-bottom:10px;font-size:13px;align-items:center;flex-wrap:wrap}
 .legend span{display:flex;align-items:center;gap:8px;font-weight:500}
 .leg-dot{width:18px;height:18px;border-radius:4px}
 
-/* Sticky header bar */
-.sticky-bar{position:sticky;top:0;z-index:20;background:var(--bg, #0d1117);padding-bottom:8px}
+/* Sticky üst bar */
+.sticky-bar{
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:var(--sidebar,#0d1117);
+  padding-bottom:6px;
+  margin:-4px -4px 0 -4px;
+  padding:4px 4px 6px 4px;
+}
 
-.grid-wrap{overflow-x:auto}
-.oda-grid{display:grid;gap:2px;min-width:max-content}
-.header-row,.oda-row{display:contents}
-.day-header{background:var(--header);color:var(--text2);font-size:11px;font-weight:700;padding:6px 4px;text-align:center;width:60px;border:1px solid var(--border);border-radius:3px;white-space:pre-line;position:sticky;top:0;z-index:5}
-.day-header.today{color:var(--accent);border-color:var(--accent)40}
-.oda-label{background:var(--card);padding:5px 8px;font-size:12px;font-weight:700;border-radius:4px;border:1px solid var(--border);width:100px;white-space:nowrap;display:flex;align-items:center}
+/* Tablo yapısı: sol oda etiketleri sabit, sağ günler scroll */
+.grid-outer{
+  display:flex;
+  overflow:hidden;
+}
+.col-labels{
+  flex-shrink:0;
+  width:110px;
+}
+.col-labels .label-spacer{
+  height:44px; /* gün header yüksekliği */
+}
+.section-label-spacer{
+  height:32px;
+  background:var(--header);
+  border-radius:3px;
+  margin:6px 0 2px;
+  display:flex;
+  align-items:center;
+  padding:0 8px;
+  font-size:15px;
+  font-weight:800;
+  color:var(--text);
+  letter-spacing:2px;
+  justify-content:center;
+}
+.oda-label{
+  background:var(--card);
+  padding:5px 8px;
+  font-size:12px;
+  font-weight:700;
+  border-radius:4px;
+  border:1px solid var(--border);
+  height:34px;
+  margin-bottom:2px;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  box-sizing:border-box;
+}
 .oda-label.leo{color:var(--leo)}
 .oda-label.cv{color:var(--cv)}
-.section-header{background:var(--header);color:var(--text);font-size:15px;font-weight:800;padding:10px 8px;border-radius:3px;grid-column:1/-1;margin:8px 0 2px;text-align:center;letter-spacing:2px}
-.cell{width:60px;height:34px;border-radius:3px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:default;position:relative}
+.oda-label.genel{color:var(--accent)}
+
+/* Sağ taraf: scroll yatay */
+.col-cells{
+  flex:1;
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+/* Sticky gün başlıkları */
+.days-header{
+  display:flex;
+  gap:2px;
+  position:sticky;
+  top:0;
+  z-index:10;
+  background:var(--sidebar,#0d1117);
+  padding-bottom:2px;
+  margin-bottom:0;
+}
+.day-header{
+  background:var(--header);
+  color:var(--text2);
+  font-size:11px;
+  font-weight:700;
+  padding:6px 4px;
+  text-align:center;
+  min-width:60px;
+  width:60px;
+  border:1px solid var(--border);
+  border-radius:3px;
+  white-space:pre-line;
+  flex-shrink:0;
+  box-sizing:border-box;
+}
+.day-header.today{color:var(--accent);border-color:var(--accent)40}
+
+/* Hücreler */
+.cells-body{}
+.section-cells-spacer{
+  height:32px;
+  margin:6px 0 2px;
+}
+.room-row{
+  display:flex;
+  gap:2px;
+  margin-bottom:2px;
+}
+.cell{
+  min-width:60px;
+  width:60px;
+  height:34px;
+  border-radius:3px;
+  border:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:700;
+  cursor:default;
+  position:relative;
+  flex-shrink:0;
+  box-sizing:border-box;
+}
 .cell.bos{background:var(--sidebar)}
 .cell.bos.today{background:var(--card2);border-color:var(--accent)40}
 
@@ -38,9 +141,21 @@
 .cell.dolu-cv{background:#7a2e00;color:#ff6b00;border-color:#ff6b00}
 .cell.dolu-cv.giris{background:#cc4a00;color:#fff;border-color:#ff6b00}
 
+/* Tek otel (GENEL) */
+.cell.dolu-genel{background:#0a4a7a;color:#00cfff;border-color:#00cfff}
+.cell.dolu-genel.giris{background:#0070cc;color:#fff;border-color:#00cfff}
+
 .cell:hover .tooltip{display:block}
-.tooltip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0a1628;border:1px solid var(--border);padding:8px 12px;border-radius:6px;white-space:nowrap;font-size:12px;color:var(--text);z-index:10;pointer-events:none;box-shadow:0 4px 16px #0006}
-.tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#0a1628}
+.tooltip{
+  display:none;position:absolute;bottom:calc(100% + 6px);left:50%;
+  transform:translateX(-50%);background:#0a1628;border:1px solid var(--border);
+  padding:8px 12px;border-radius:6px;white-space:nowrap;font-size:12px;
+  color:var(--text);z-index:30;pointer-events:none;box-shadow:0 4px 16px #0006
+}
+.tooltip::after{
+  content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:#0a1628
+}
 </style>
 
 <div class="sticky-bar">
@@ -53,17 +168,17 @@
     </div>
     <div class="period" id="period-lbl">—</div>
   </div>
-
-  <div class="legend">
-    <span><div class="leg-dot" style="background:#0070cc;border:2px solid #00cfff"></div> Otel Leo (Dolu)</span>
-    <span><div class="leg-dot" style="background:#cc4a00;border:2px solid #ff6b00"></div> Cunda Villa (Dolu)</span>
-    <span><div class="leg-dot" style="background:var(--sidebar);border:1px solid var(--border)"></div> Boş</span>
-    <span style="color:var(--text2);font-size:12px">★ Parlak renk = Giriş günü</span>
+  <div class="legend" id="legend-area">
+    <!-- JS tarafından doldurulacak -->
   </div>
 </div>
 
-<div class="grid-wrap">
-  <div id="oda-grid"></div>
+<div class="grid-outer">
+  <div class="col-labels" id="col-labels"></div>
+  <div class="col-cells" id="col-cells">
+    <div class="days-header" id="days-header"></div>
+    <div class="cells-body" id="cells-body"></div>
+  </div>
 </div>
 {% endblock %}
 
@@ -72,96 +187,107 @@
 let startDate = new Date();
 startDate.setHours(0,0,0,0);
 
-function toISO(d) {
-  return d.toISOString().split('T')[0];
-}
+function toISO(d){ return d.toISOString().split('T')[0]; }
 
-function shift(days) {
-  startDate.setDate(startDate.getDate() + days);
+function shift(days){
+  startDate.setDate(startDate.getDate()+days);
   load();
 }
-
-function goToday() {
-  startDate = new Date();
+function goToday(){
+  startDate=new Date();
   startDate.setHours(0,0,0,0);
   load();
 }
-
-async function reload() {
-  const btn = document.getElementById('yenile-btn');
-  btn.textContent = '⏳ Yükleniyor...';
-  btn.disabled = true;
+async function reload(){
+  const btn=document.getElementById('yenile-btn');
+  btn.textContent='⏳ Yükleniyor...';
+  btn.disabled=true;
   await load();
-  btn.textContent = '🔄 Yenile';
-  btn.disabled = false;
+  btn.textContent='🔄 Yenile';
+  btn.disabled=false;
 }
-
-async function load() {
-  const d = await api(`/api/oda-durumu?start=${toISO(startDate)}`);
+async function load(){
+  const d=await api(`/api/oda-durumu?start=${toISO(startDate)}`);
   render(d);
 }
 
-function render(d) {
-  const today = d.today;
-  const dates = d.dates;
-  const grid = d.grid;
+function render(d){
+  const today=d.today, dates=d.dates, grid=d.grid;
 
   // Period label
-  const first = new Date(dates[0] + 'T00:00:00');
-  const last  = new Date(dates[dates.length-1] + 'T00:00:00');
-  document.getElementById('period-lbl').textContent =
-    first.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' +
+  const first=new Date(dates[0]+'T00:00:00');
+  const last=new Date(dates[dates.length-1]+'T00:00:00');
+  document.getElementById('period-lbl').textContent=
+    first.toLocaleDateString('tr-TR',{day:'numeric',month:'short'})+' – '+
     last.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
 
-  const dayNames = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+  const dayNames=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 
-  // Sticky header offset: sticky-bar height
-  const barH = document.querySelector('.sticky-bar').offsetHeight;
-  document.querySelectorAll('.day-header').forEach(el => el.style.top = barH + 'px');
+  // Detect two-hotel vs single
+  const oteller=[...new Set(grid.map(r=>r.otel))];
+  const isTwoHotel = oteller.some(o=>o==='LEO'||o==='CV');
 
-  let html = `<div style="display:grid;grid-template-columns:100px repeat(${dates.length},60px);gap:2px">`;
-
-  // Header row
-  html += `<div></div>`;
-  for (const dt of dates) {
-    const d2 = new Date(dt + 'T00:00:00');
-    const isToday = dt === today;
-    html += `<div class="day-header${isToday?' today':''}" style="top:${barH}px">${dayNames[d2.getDay()]}\n${d2.getDate()}</div>`;
+  // Legend
+  const legendEl=document.getElementById('legend-area');
+  if(isTwoHotel){
+    legendEl.innerHTML=`
+      <span><div class="leg-dot" style="background:#0070cc;border:2px solid #00cfff"></div> Otel Leo (Dolu)</span>
+      <span><div class="leg-dot" style="background:#cc4a00;border:2px solid #ff6b00"></div> Cunda Villa (Dolu)</span>
+      <span><div class="leg-dot" style="background:var(--sidebar);border:1px solid var(--border)"></div> Boş</span>
+      <span style="color:var(--text2);font-size:12px">★ Parlak renk = Giriş günü</span>`;
+  } else {
+    legendEl.innerHTML=`
+      <span><div class="leg-dot" style="background:#0070cc;border:2px solid #00cfff"></div> Dolu Oda</span>
+      <span><div class="leg-dot" style="background:var(--sidebar);border:1px solid var(--border)"></div> Boş</span>
+      <span style="color:var(--text2);font-size:12px">★ Parlak renk = Giriş günü</span>`;
   }
 
-  // Group by otel
-  let lastOtel = null;
-  for (const room of grid) {
-    if (room.otel !== lastOtel) {
-      lastOtel = room.otel;
-      const label = room.otel === 'LEO' ? 'OTEL LEO' : 'CUNDA VİLLA';
-      html += `<div class="section-header">${label}</div>`;
-    }
+  // Days header
+  const daysHdr=document.getElementById('days-header');
+  daysHdr.innerHTML=dates.map(dt=>{
+    const d2=new Date(dt+'T00:00:00');
+    const isToday=dt===today;
+    return `<div class="day-header${isToday?' today':''}">${dayNames[d2.getDay()]}\n${d2.getDate()}</div>`;
+  }).join('');
 
-    const otelClass = room.otel === 'LEO' ? 'leo' : 'cv';
-    html += `<div class="oda-label ${otelClass}">${room.otel} – ${room.oda_no}</div>`;
+  // Left labels + right cells
+  let labelsHtml='<div class="label-spacer"></div>';
+  let cellsHtml='';
 
-    for (let i = 0; i < dates.length; i++) {
-      const dt = dates[i];
-      const cell = room.cells[i];
-      const isToday = dt === today;
-
-      if (cell.dolu) {
-        const doluClass = `dolu-${room.otel.toLowerCase()}${cell.is_giris ? ' giris' : ''}`;
-        const girisF = cell.giris ? new Date(cell.giris+'T00:00:00').toLocaleDateString('tr-TR') : '';
-        const cikisF = cell.cikis ? new Date(cell.cikis+'T00:00:00').toLocaleDateString('tr-TR') : '';
-        html += `<div class="cell ${doluClass}">
-          ${cell.initials}
-          <div class="tooltip">${cell.musteri}<br>${girisF} – ${cikisF}<br>Föy: ${cell.foy_no}</div>
-        </div>`;
-      } else {
-        html += `<div class="cell bos${isToday?' today':''}"></div>`;
+  let lastOtel=null;
+  for(const room of grid){
+    if(room.otel!==lastOtel){
+      lastOtel=room.otel;
+      if(isTwoHotel){
+        const title=room.otel==='LEO'?'OTEL LEO':'CUNDA VİLLA';
+        labelsHtml+=`<div class="section-label-spacer">${title}</div>`;
+        cellsHtml+=`<div class="section-cells-spacer"></div>`;
       }
     }
+    const otelClass=room.otel==='LEO'?'leo':room.otel==='CV'?'cv':'genel';
+    labelsHtml+=`<div class="oda-label ${otelClass}">${room.otel==='LEO'?'LEO':room.otel==='CV'?'CV':'Oda'}-${room.oda_no}</div>`;
+
+    let rowHtml='<div class="room-row">';
+    for(let i=0;i<dates.length;i++){
+      const dt=dates[i];
+      const cell=room.cells[i];
+      const isToday=dt===today;
+      if(cell.dolu){
+        const base=room.otel==='LEO'?'dolu-leo':room.otel==='CV'?'dolu-cv':'dolu-genel';
+        const cls=base+(cell.is_giris?' giris':'');
+        const gF=cell.giris?new Date(cell.giris+'T00:00:00').toLocaleDateString('tr-TR'):'';
+        const cF=cell.cikis?new Date(cell.cikis+'T00:00:00').toLocaleDateString('tr-TR'):'';
+        rowHtml+=`<div class="cell ${cls}">${cell.initials}<div class="tooltip">${cell.musteri}<br>${gF} – ${cF}<br>Föy: ${cell.foy_no}</div></div>`;
+      } else {
+        rowHtml+=`<div class="cell bos${isToday?' today':''}"></div>`;
+      }
+    }
+    rowHtml+='</div>';
+    cellsHtml+=rowHtml;
   }
 
-  html += '</div>';
-  document.getElementById('oda-grid').innerHTML = html;
+  document.getElementById('col-labels').innerHTML=labelsHtml;
+  document.getElementById('cells-body').innerHTML=cellsHtml;
 }
 
 load();
